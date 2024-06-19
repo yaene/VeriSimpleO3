@@ -245,10 +245,18 @@ typedef union packed {
 // assuming 4 bits will be enough (max 16 ROB entries)
 `define ROB_TAG_LEN 4
 
+typedef struct packed {
+	logic wr_mem; // is a store
+	logic [4:0] dest_reg; // destination register
+	logic [`XLEN-1:0] dest_addr; // destination address (store)
+	logic [`XLEN-1:0] value; // instruction result
+	logic ready; // ready to commit
+} ROB_ENTRY;
+
 // Common Data Bus
 typedef struct packed {
-	logic [`ROB_TAG_LEN-1:0] rob_tag, // identifies instruction that produced value
-	logic [`XLEN-1:0] value
+    logic [`ROB_TAG_LEN-1:0] rob_tag; // identifies instruction that produced value
+    logic [`XLEN-1:0] value;
 } CDB_DATA;
 
 
