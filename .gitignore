@@ -1,0 +1,5 @@
+# build outputs
+program.mem
+program.elf
+program.debug.dump
+program.dump
