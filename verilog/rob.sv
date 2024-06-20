@@ -23,8 +23,8 @@ module rob (input clock,
             );
     parameter ROB_SIZE = 4; 
     
-    logic [`ROB_TAG_LEN-1:0] head;
-    logic [`ROB_TAG_LEN-1:0] tail;
+    logic [`ROB_TAG_LEN-1:0] head, next_head;
+    logic [`ROB_TAG_LEN-1:0] tail, next_tail;
 
     ROB_ENTRY [ROB_SIZE-1:0] rob; // ROB entries
 
@@ -44,8 +44,11 @@ module rob (input clock,
         if (cdb_data.valid) begin
           if (rob[cdb_data.rob_tag].wr_mem)
             rob[cdb_data.rob_tag].dest_addr <= cdb_data.value;
-          else
+          else begin
+            // todo yb: store value for any dependent stores and handle their readiness properly
             rob[cdb_data.rob_tag].value <= cdb_data.value;
+            rob[cdb_data.rob_tag].ready <= `TRUE;
+          end
         end
         // allocate ROB entry
         if (alloc_enable && !full)
@@ -80,7 +83,7 @@ module rob (input clock,
         if (tail + 1 == ROB_SIZE) 
           next_tail = 0;
         else
-          next_tail = head + 1;
+          next_tail = tail + 1;
       end
     end
 
