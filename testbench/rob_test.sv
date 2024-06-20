@@ -8,9 +8,9 @@ module rob_testbench();
     
     logic alloc_enable;                    // should a new slot be allocated
     logic alloc_wr_mem;                    // is new instruction a store?
-    logic [`XLEN-1:0] alloc_store_value;               // value to be stored (if available)
+    logic [`XLEN-1:0] alloc_value_in;               // value to be stored (if available)
     logic [`ROB_TAG_LEN-1:0] alloc_store_dep; // instn producing value to be stored              
-    logic alloc_value_ready;
+    logic alloc_value_in_valid;
     logic [4:0] dest_reg;                  // dest register of new instruction
     CDB_DATA cdb_data;               // data on CDB
     logic [`ROB_TAG_LEN-1:0] read_rob_tag; // rob entry to read value from
@@ -29,9 +29,9 @@ module rob_testbench();
     .reset (reset),
     .alloc_enable (alloc_enable),
     .alloc_wr_mem (alloc_wr_mem),
-    .alloc_store_value (alloc_store_value),
+    .alloc_value_in (alloc_value_in),
     .alloc_store_dep (alloc_store_dep),
-    .alloc_value_ready (alloc_value_ready),
+    .alloc_value_in_valid (alloc_value_in_valid),
     .dest_reg (dest_reg),
     .cdb_data (cdb_data),
     .read_rob_tag (read_rob_tag),
@@ -163,8 +163,8 @@ module rob_testbench();
         @(negedge clock)
         alloc_enable = 1;
         dest_reg = 3;
-        alloc_value_ready = 1;
-        alloc_store_value = 10;
+        alloc_value_in_valid = 1;
+        alloc_value_in = 10;
         alloc_wr_mem = 1;
         head_tag = alloc_slot;
 
@@ -181,7 +181,7 @@ module rob_testbench();
         // check value from other instruction is forwared to store
         @(negedge clock)
         alloc_enable = 1;
-        alloc_value_ready = 0;
+        alloc_value_in_valid = 0;
         alloc_wr_mem = 0;
         head_tag = alloc_slot;
 
@@ -227,7 +227,7 @@ module rob_testbench();
         @(negedge clock)
         reset = 0;
         alloc_wr_mem = 0;
-        alloc_value_ready = 0;
+        alloc_value_in_valid = 0;
         dest_reg = `ZERO_REG;
 
         TEST_HAPPY_FLOW();
