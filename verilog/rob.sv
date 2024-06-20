@@ -54,8 +54,10 @@ module rob (input clock,
         if (alloc_enable && !full)
           rob[tail] <= '{`TRUE, alloc_wr_mem, dest_reg,
                               `XLEN'b0, `XLEN'b0, `FALSE};
+
         // clear entry of committed instruction
-        if (clear_head)
+        // allow for overwriting of just commited head by new entry
+        if (clear_head && !(alloc_enable && tail == head))
           rob[head] <= `EMPTY_ROB_ENTRY;
 
         // update head and tail
@@ -87,7 +89,7 @@ module rob (input clock,
       end
     end
 
-    assign full = rob[head].valid && tail == head;
+    assign full = rob[head].valid && tail == head && !clear_head;
     assign alloc_slot = tail;
     assign read_value = rob[read_rob_tag].value;
     assign head_entry = rob[head];

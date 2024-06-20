@@ -1,6 +1,8 @@
 `timescale 1ns/100ps
 
 module rob_testbench();
+    parameter ROB_SIZE = 4;
+
     logic clock;
     logic reset;
     
@@ -18,7 +20,8 @@ module rob_testbench();
     logic pending_stores;                 // whether there are any pending stores before load
     ROB_ENTRY head_entry;           // the entry of the next instn to commit
     
-    rob rob_1 (.clock (clock),
+    rob #(.ROB_SIZE(ROB_SIZE)) rob_1 (
+    .clock (clock),
     .reset (reset),
     .alloc_enable (alloc_enable),
     .alloc_wr_mem (alloc_wr_mem),
@@ -93,6 +96,7 @@ module rob_testbench();
         cdb_data = '{`TRUE, 1, 5};
 
         @(negedge clock)
+        cdb_data = '{`FALSE, 1, 0};
         CHECK_VAL("head ready", head_entry.ready, 1);
         CHECK_VAL("head value", head_entry.value, 5);
 
@@ -106,6 +110,42 @@ module rob_testbench();
         CHECK_VAL("head valid", head_entry.valid, 0);
 
     endtask
+
+    task TEST_FULL;
+    
+        logic [`ROB_TAG_LEN-1:0] head_tag;
+        for (int i=1; i<=ROB_SIZE; i=i+1) begin
+            @(negedge clock) 
+            if(i==1) head_tag = alloc_slot;
+            alloc_enable = 1;
+            dest_reg = i;
+            CHECK_VAL("not full", full, 0);
+        end
+
+        @(negedge clock)
+        CHECK_VAL("full", full, 1);
+        dest_reg = 10;
+        cdb_data = '{`TRUE, head_tag, 11};
+
+        @(negedge clock)
+        CHECK_VAL("head ready", head_entry.ready, 1);
+        CHECK_VAL("head value", head_entry.value, 11);
+        cdb_data = '{`FALSE, head_tag, 0};
+
+        // check whether commit and add new entry can happen at the same time
+        @(negedge clock)
+        CHECK_VAL("full", full, 1);
+        CHECK_VAL("head ready", head_entry.ready, 0);
+        CHECK_VAL("head dest", head_entry.dest_reg, 2);
+
+        @(negedge clock)
+        reset = 1;
+
+        @(negedge clock)
+        reset = 0;
+
+    endtask
+
     initial begin
         $dumpvars;
         $monitor("Time:%4.0f, full:%b, read_rob: %d, read_value: %h, alloc_slot: %d",
@@ -120,6 +160,7 @@ module rob_testbench();
         dest_reg = `ZERO_REG;
 
         TEST_HAPPY_FLOW();
+        TEST_FULL();
 
         $finish;
 
