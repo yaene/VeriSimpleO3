@@ -251,7 +251,9 @@ typedef struct packed {
 	logic [4:0] dest_reg; // destination register
 	logic [`XLEN-1:0] dest_addr; // destination address (store)
 	logic [`XLEN-1:0] value; // instruction result
-	logic ready; // ready to commit
+	logic [`ROB_TAG_LEN-1:0] store_dep;
+	logic value_ready;
+	logic address_ready;
 } ROB_ENTRY;
 
 // Common Data Bus

@@ -8,6 +8,9 @@ module rob_testbench();
     
     logic alloc_enable;                    // should a new slot be allocated
     logic alloc_wr_mem;                    // is new instruction a store?
+    logic [`XLEN-1:0] alloc_store_value;               // value to be stored (if available)
+    logic [`ROB_TAG_LEN-1:0] alloc_store_dep; // instn producing value to be stored              
+    logic alloc_value_ready;
     logic [4:0] dest_reg;                  // dest register of new instruction
     CDB_DATA cdb_data;               // data on CDB
     logic [`ROB_TAG_LEN-1:0] read_rob_tag; // rob entry to read value from
@@ -19,12 +22,16 @@ module rob_testbench();
     logic [`XLEN-1:0] read_value;         // ROB[read_rob_tag].value
     logic pending_stores;                 // whether there are any pending stores before load
     ROB_ENTRY head_entry;           // the entry of the next instn to commit
+    logic head_ready;
     
     rob #(.ROB_SIZE(ROB_SIZE)) rob_1 (
     .clock (clock),
     .reset (reset),
     .alloc_enable (alloc_enable),
     .alloc_wr_mem (alloc_wr_mem),
+    .alloc_store_value (alloc_store_value),
+    .alloc_store_dep (alloc_store_dep),
+    .alloc_value_ready (alloc_value_ready),
     .dest_reg (dest_reg),
     .cdb_data (cdb_data),
     .read_rob_tag (read_rob_tag),
@@ -34,7 +41,8 @@ module rob_testbench();
     .alloc_slot (alloc_slot),
     .read_value (read_value),
     .pending_stores (pending_stores),
-    .head_entry (head_entry)
+    .head_entry (head_entry),
+    .head_ready (head_ready)
     );
 
     always begin
@@ -66,20 +74,20 @@ module rob_testbench();
         CHECK_VAL("next slot", alloc_slot, 1);
         CHECK_VAL("allocated wrmem", head_entry.wr_mem, `FALSE);
         CHECK_VAL("allocated dest", head_entry.dest_reg, 3);
-        CHECK_VAL("allocated ready", head_entry.ready, `FALSE);
+        CHECK_VAL("allocated ready", head_ready, `FALSE);
         cdb_data = '{`TRUE, entry, 5};
         alloc_enable = 0;
 
         @(negedge clock)
         CHECK_VAL("next slot", alloc_slot, 1);
-        CHECK_VAL("head ready", head_entry.ready, `TRUE);
+        CHECK_VAL("head ready", head_ready, `TRUE);
         CHECK_VAL("head value", head_entry.value, 5);
         alloc_enable = 1;
         dest_reg = 1;
 
         @(negedge clock)
         CHECK_VAL("next slot", alloc_slot, 2);
-        CHECK_VAL("head ready", head_entry.ready, 0);
+        CHECK_VAL("head ready", head_ready, 0);
         CHECK_VAL("head dest", head_entry.dest_reg, 1);
         entry = alloc_slot;
         dest_reg = 2;
@@ -91,22 +99,22 @@ module rob_testbench();
         read_rob_tag = entry;
 
         @(negedge clock)
-        CHECK_VAL("head ready", head_entry.ready, 0);
+        CHECK_VAL("head ready", head_ready, 0);
         CHECK_VAL("prev value", read_value, 11);
         cdb_data = '{`TRUE, 1, 5};
 
         @(negedge clock)
         cdb_data = '{`FALSE, 1, 0};
-        CHECK_VAL("head ready", head_entry.ready, 1);
+        CHECK_VAL("head ready", head_ready, 1);
         CHECK_VAL("head value", head_entry.value, 5);
 
         @(negedge clock)
-        CHECK_VAL("head ready", head_entry.ready, 1);
+        CHECK_VAL("head ready", head_ready, 1);
         CHECK_VAL("head value", head_entry.value, 11);
         CHECK_VAL("head valid", head_entry.valid, 1);
 
         @(negedge clock)
-        CHECK_VAL("head ready", head_entry.ready, 0);
+        CHECK_VAL("head ready", head_ready, 0);
         CHECK_VAL("head valid", head_entry.valid, 0);
 
     endtask
@@ -128,14 +136,14 @@ module rob_testbench();
         cdb_data = '{`TRUE, head_tag, 11};
 
         @(negedge clock)
-        CHECK_VAL("head ready", head_entry.ready, 1);
+        CHECK_VAL("head ready", head_ready, 1);
         CHECK_VAL("head value", head_entry.value, 11);
         cdb_data = '{`FALSE, head_tag, 0};
 
         // check whether commit and add new entry can happen at the same time
         @(negedge clock)
         CHECK_VAL("full", full, 1);
-        CHECK_VAL("head ready", head_entry.ready, 0);
+        CHECK_VAL("head ready", head_ready, 0);
         CHECK_VAL("head dest", head_entry.dest_reg, 2);
 
         @(negedge clock)

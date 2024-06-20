@@ -3,12 +3,15 @@
 
 `timescale 1ns/100ps
 
-`define EMPTY_ROB_ENTRY '{`FALSE, `FALSE, `ZERO_REG, `XLEN'b0, `XLEN'b0, `FALSE}
+`define EMPTY_ROB_ENTRY '{`FALSE, `FALSE, `ZERO_REG, `XLEN'b0, `XLEN'b0, `ROB_TAG_LEN'b0, `FALSE, `FALSE}
 
 module rob (input clock,
             input reset,
             input alloc_enable,                    // should a new slot be allocated
             input alloc_wr_mem,                    // is new instruction a store?
+            input [`XLEN-1:0] alloc_store_value,   // value to store if available during store issue
+            input [`ROB_TAG_LEN-1:0] alloc_store_dep, // else ROB providing value of store
+            input alloc_value_ready,                    // whether store value is available at issue
             input [4:0] dest_reg,                  // dest register of new instruction
             input CDB_DATA cdb_data,               // data on CDB
             input [`ROB_TAG_LEN-1:0] read_rob_tag, // rob entry to read value from
@@ -19,17 +22,17 @@ module rob (input clock,
             output [`ROB_TAG_LEN-1:0] alloc_slot,  // rob tag of new instruction
             output [`XLEN-1:0] read_value,         // ROB[read_rob_tag].value
             output pending_stores,                 // whether there are any pending stores before load
-            output ROB_ENTRY head_entry           // the entry of the next instn to commit
+            output ROB_ENTRY head_entry,           // the entry of the next instn to commit
+            output head_ready
             );
     parameter ROB_SIZE = 4; 
     
     logic [`ROB_TAG_LEN-1:0] head, next_head;
     logic [`ROB_TAG_LEN-1:0] tail, next_tail;
+    logic clear_head, allocate_tail;
 
     ROB_ENTRY [ROB_SIZE-1:0] rob; // ROB entries
 
-    logic clear_head;
-    assign clear_head = rob[head].ready;
 
     always_ff @(posedge clock) begin
       if (reset) begin
@@ -45,20 +48,28 @@ module rob (input clock,
           if (rob[cdb_data.rob_tag].wr_mem)
             rob[cdb_data.rob_tag].dest_addr <= cdb_data.value;
           else begin
-            // todo yb: store value for any dependent stores and handle their readiness properly
-            rob[cdb_data.rob_tag].value <= cdb_data.value;
-            rob[cdb_data.rob_tag].ready <= `TRUE;
+            // pass CDB data to corresponding ROB and any dep. stores
+            for (int i = 0; i < ROB_SIZE; ++i) begin
+              if(i == cdb_data.rob_tag ||
+                  (rob[i].wr_mem && rob[i].store_dep == cdb_data.rob_tag && 
+                  !rob[i].value_ready))
+              rob[cdb_data.rob_tag].value <= cdb_data.value;
+              rob[cdb_data.rob_tag].value_ready <= `TRUE;
+            end
           end
         end
+
         // allocate ROB entry
-        if (alloc_enable && !full)
+        if (allocate_tail) begin
           rob[tail] <= '{`TRUE, alloc_wr_mem, dest_reg,
-                              `XLEN'b0, `XLEN'b0, `FALSE};
+                              `XLEN'b0, `XLEN'b0, alloc_store_dep, 
+                              alloc_value_ready, ~alloc_wr_mem};
+        end
 
         // clear entry of committed instruction
-        // allow for overwriting of just commited head by new entry
-        if (clear_head && !(alloc_enable && tail == head))
+        if (clear_head) begin
           rob[head] <= `EMPTY_ROB_ENTRY;
+        end
 
         // update head and tail
         head <= next_head; 
@@ -70,7 +81,7 @@ module rob (input clock,
       // if head is ready then we can remove it next cycle (will have committed)
     always_comb begin
       next_head = head;
-      if (clear_head) begin
+      if (head_ready) begin
         if (head + 1 == ROB_SIZE) 
           next_head = 0;
         else
@@ -89,11 +100,15 @@ module rob (input clock,
       end
     end
 
-    assign full = rob[head].valid && tail == head && !clear_head;
+    // address ready by default on non-stores
+    assign head_ready = rob[head].value_ready && rob[head].address_ready;
+    assign full = rob[head].valid && tail == head && !head_ready;
     assign alloc_slot = tail;
     assign read_value = rob[read_rob_tag].value;
     assign head_entry = rob[head];
-
+    // we allow for overwriting of just commited head by new entry
+    assign clear_head = head_ready && !(alloc_enable && tail == head);
+    assign allocate_tail = alloc_enable && !full;
 endmodule
 
 `endif
