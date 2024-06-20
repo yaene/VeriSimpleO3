@@ -246,6 +246,7 @@ typedef union packed {
 `define ROB_TAG_LEN 4
 
 typedef struct packed {
+	logic valid; // needed to distinguish empty entries
 	logic wr_mem; // is a store
 	logic [4:0] dest_reg; // destination register
 	logic [`XLEN-1:0] dest_addr; // destination address (store)
@@ -255,6 +256,7 @@ typedef struct packed {
 
 // Common Data Bus
 typedef struct packed {
+	logic valid;
     logic [`ROB_TAG_LEN-1:0] rob_tag; // identifies instruction that produced value
     logic [`XLEN-1:0] value;
 } CDB_DATA;
