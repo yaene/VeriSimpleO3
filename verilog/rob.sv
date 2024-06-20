@@ -45,16 +45,19 @@ module rob (input clock,
       else begin
         // read data from CDB
         if (cdb_data.valid) begin
-          if (rob[cdb_data.rob_tag].wr_mem)
+          if (rob[cdb_data.rob_tag].wr_mem) begin
             rob[cdb_data.rob_tag].dest_addr <= cdb_data.value;
+            rob[cdb_data.rob_tag].address_ready <= `TRUE;
+          end
           else begin
             // pass CDB data to corresponding ROB and any dep. stores
             for (int i = 0; i < ROB_SIZE; ++i) begin
               if(i == cdb_data.rob_tag ||
                   (rob[i].wr_mem && rob[i].store_dep == cdb_data.rob_tag && 
-                  !rob[i].value_ready))
-              rob[cdb_data.rob_tag].value <= cdb_data.value;
-              rob[cdb_data.rob_tag].value_ready <= `TRUE;
+                  !rob[i].value_ready)) begin
+                    rob[i].value <= cdb_data.value;
+                    rob[i].value_ready <= `TRUE;
+                  end
             end
           end
         end
@@ -62,7 +65,7 @@ module rob (input clock,
         // allocate ROB entry
         if (allocate_tail) begin
           rob[tail] <= '{`TRUE, alloc_wr_mem, dest_reg,
-                              `XLEN'b0, `XLEN'b0, alloc_store_dep, 
+                              `XLEN'b0, alloc_store_value, alloc_store_dep, 
                               alloc_value_ready, ~alloc_wr_mem};
         end
 

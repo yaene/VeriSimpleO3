@@ -56,7 +56,7 @@ module rob_testbench();
         input string desc;
 		input [`XLEN-1:0] actual;
         input [`XLEN-1:0] expected;
-        if( actual != expected ) begin
+        if( actual !== expected ) begin
             $display("@@@ %s incorrect at time %4.0f", desc, $time);
             $display("@@@ expected: %h, actual: %h", expected, actual);
             $display("ENDING TESTBENCH : ERROR !");
@@ -147,10 +147,72 @@ module rob_testbench();
         CHECK_VAL("head dest", head_entry.dest_reg, 2);
 
         @(negedge clock)
+        alloc_enable = 0;
         reset = 1;
 
         @(negedge clock)
         reset = 0;
+
+    endtask
+
+    task TEST_VALUE_TO_DEPENDENT_STORES;
+        logic [`ROB_TAG_LEN-1:0] head_tag;
+        logic [`ROB_TAG_LEN-1:0] alloc_tag;
+
+        // check store ready when value already from issue
+        @(negedge clock)
+        alloc_enable = 1;
+        dest_reg = 3;
+        alloc_value_ready = 1;
+        alloc_store_value = 10;
+        alloc_wr_mem = 1;
+        head_tag = alloc_slot;
+
+        @(negedge clock)
+        alloc_enable = 0;
+        cdb_data = '{`TRUE, head_tag, 11};
+
+        @(negedge clock)
+        CHECK_VAL("store ready", head_ready, 1);
+        CHECK_VAL("store address", head_entry.dest_addr, 11);
+        CHECK_VAL("store value", head_entry.value, 10);
+        cdb_data = '{`FALSE, head_tag, 11};
+
+        // check value from other instruction is forwared to store
+        @(negedge clock)
+        alloc_enable = 1;
+        alloc_value_ready = 0;
+        alloc_wr_mem = 0;
+        head_tag = alloc_slot;
+
+        @(negedge clock)
+        alloc_wr_mem = 1;
+        alloc_store_dep = head_tag; // store dep on prev inst
+        alloc_tag = alloc_slot;
+
+        @(negedge clock)
+        CHECK_VAL("prev not ready", head_ready, 0);
+        // what happens if data gets announced on CDB in same cycle as new store allocated?
+        cdb_data = '{`TRUE, head_tag, 5};
+
+        @(negedge clock)
+        alloc_enable = 0;
+        CHECK_VAL("prev ready", head_ready, 1);
+        cdb_data = '{`FALSE, alloc_tag, 0}; 
+        
+        @(negedge clock)
+        cdb_data = '{`TRUE, alloc_tag, 2}; // store address on CDB
+        CHECK_VAL("store head", head_entry.wr_mem, 1);
+        CHECK_VAL("store not ready", head_ready, 0);
+
+        @(negedge clock)
+        cdb_data = '{`FALSE, alloc_tag, 0}; // store address on CDB
+        CHECK_VAL("store head", head_entry.wr_mem, 1);
+        CHECK_VAL("store ready", head_ready, 1);
+
+        @(negedge clock)
+        CHECK_VAL("store head", head_entry.wr_mem, 1);
+        CHECK_VAL("second store also got value", head_entry.value_ready, 1);
 
     endtask
 
@@ -165,10 +227,12 @@ module rob_testbench();
         @(negedge clock)
         reset = 0;
         alloc_wr_mem = 0;
+        alloc_value_ready = 0;
         dest_reg = `ZERO_REG;
 
         TEST_HAPPY_FLOW();
         TEST_FULL();
+        TEST_VALUE_TO_DEPENDENT_STORES();
 
         $finish;
 
