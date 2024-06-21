@@ -7,12 +7,13 @@ module maptable(
   input logic reset,
   input logic commit,
   input INST inst,
-  output INST inst_out
+  input logic [4:0] old_phys_rd,
+  output MAPPED_REG_PACKET mapped_reg_packet
 );
   
   // Maptable and free list queue 
-  logic [4:0] maptable[4:0];
-  logic [4:0] free_list_queue [4:0];
+  logic [4:0] maptable[31:0];
+  logic [4:0] free_list_queue [31:0];
   logic [4:0] queue_head, queue_tail;
 
   // Function to get a new physical register from free list queue
@@ -31,25 +32,25 @@ module maptable(
   // TODO: at recovery
 
   always_ff @(posedge clock) begin
-    inst_out <= inst;
     if (reset) begin
       integer i;
       for (i = 0; i < 32; i++) begin
         maptable[i] <= i;
         free_list_queue[i] <= i;
       end
-      queue_head <= 1;
+      queue_head <= 17;
       queue_tail <= 0;
-    end else if (commit) begin
-      maptable[inst.r.rd] <= new_phys_reg();
-      free_phys_reg(inst.r.old_phys_rd);
+    end
+    if (commit) begin
+      free_phys_reg(old_phys_rd);
     end else begin
-      inst_out.r.phys_rs1 <= maptable[inst.r.rs1];
-      inst_out.r.phys_rs2 <= maptable[inst.r.rs2];
-      inst_out.r.old_phys_rd <= maptable[inst.r.rd];
-      inst_out.r.new_phys_rd <= new_phys_reg();
-      maptable[inst.r.rd] <= inst_out.r.new_phys_rd;
+      mapped_reg_packet.phys_rs1 <= maptable[inst.r.rs1];
+      mapped_reg_packet.phys_rs2 <= maptable[inst.r.rs2];
+      mapped_reg_packet.old_phys_rd <= maptable[inst.r.rd];
+      mapped_reg_packet.new_phys_rd <= new_phys_reg();
+      maptable[inst.r.rd] <= mapped_reg_packet.new_phys_rd;
     end
   end
 
 endmodule
+`endif

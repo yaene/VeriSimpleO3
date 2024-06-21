@@ -1,11 +1,14 @@
-module maptable_tb();
+`timescale 1ns/100ps
 
-  // Clock and reset signals
+module maptable_tb;
+
+  // Declare testbench signals
   logic clock;
   logic reset;
   logic commit;
   INST inst;
-  INST inst_out;
+  logic [4:0] old_phys_rd;
+  MAPPED_REG_PACKET mapped_reg_packet;
 
   // Instantiate the maptable module
   maptable uut (
@@ -13,67 +16,46 @@ module maptable_tb();
     .reset(reset),
     .commit(commit),
     .inst(inst),
-    .inst_out(inst_out)
+    .old_phys_rd(old_phys_rd),
+    .mapped_reg_packet(mapped_reg_packet)
   );
 
   // Clock generation
-  always #5 clock = ~clock;
+  always #5 clock = ~clock; // 100MHz clock
 
-  // Task to apply stimulus to the maptable
-  task apply_inst(input INST i, input logic c);
-    begin
-      inst = i;
-      commit = c;
-      #10;
-    end
-  endtask
-
-  // Initial block to provide stimulus
   initial begin
     // Initialize signals
     clock = 0;
-    reset = 1;
+    reset = 0;
     commit = 0;
     inst = '0;
+    old_phys_rd = '0;
 
     // Apply reset
-    #15 reset = 0;
+    reset = 1;
+    #20;
+    reset = 0;
 
-    // Apply some instructions for decode
-    INST temp;
-    temp.r.rs1 = 1;
-    temp.r.rs2 = 2;
-    temp.r.rd = 3;
+    // Test case 1: simple instruction mapping
+    inst.r.rs1 = 1;
+    inst.r.rs2 = 2;
+    inst.r.rd = 3;
 
+    #10; // wait for clock edge to capture the instruction
 
-    $display("Starting decode instructions:");
-    apply_inst(temp, 0);
-    $display("Inst decoded with phys_rs1: %0d, phys_rs2: %0d, old_phys_rd: %0d, new_phys_rd: %0d", inst_out.r.phys_rs1, inst_out.r.phys_rs2, inst_out.r.old_phys_rd, inst_out.r.new_phys_rd);
+    // Check the results
+    assert(mapped_reg_packet.phys_rs1 == 5'b00001);
+    assert(mapped_reg_packet.phys_rs2 == 5'b00010);
+    assert(mapped_reg_packet.old_phys_rd == 5'b00011);
+    assert(mapped_reg_packet.new_phys_rd != 5'b00000);
 
-    temp.r.rs1 = 2;
-    temp.r.rs2 = 3;
-    temp.r.rd = 4; 
+    // Test case 2: commit instruction
+    commit = 1;
+    old_phys_rd = mapped_reg_packet.old_phys_rd;
 
-    apply_inst(temp, 0);
-    $display("Inst decoded with phys_rs1: %0d, phys_rs2: %0d, old_phys_rd: %0d, new_phys_rd: %0d", inst_out.r.phys_rs1, inst_out.r.phys_rs2, inst_out.r.old_phys_rd, inst_out.r.new_phys_rd);
+    #30; // wait for clock edge to capture the commit
 
-    // Apply some instructions for commit
-    temp.r.rs1 = 1;
-    temp.r.rs2 = 2;
-    temp.r.rd = 3;
-
-    $display("Starting commit instructions:");
-    apply_inst(temp, 1);
-    $display("Inst committed with phys_rs1: %0d, phys_rs2: %0d, old_phys_rd: %0d, new_phys_rd: %0d", inst_out.r.phys_rs1, inst_out.r.phys_rs2, inst_out.r.old_phys_rd, inst_out.r.new_phys_rd);
-
-    temp.r.rs1 = 2;
-    temp.r.rs2 = 3;
-    temp.r.rd = 4;
-
-    apply_inst(temp, 1);
-    $display("Inst committed with phys_rs1: %0d, phys_rs2: %0d, old_phys_rd: %0d, new_phys_rd: %0d", inst_out.r.phys_rs1, inst_out.r.phys_rs2, inst_out.r.old_phys_rd, inst_out.r.new_phys_rd);
-
-    $stop;
+    $finish;
   end
 
 endmodule

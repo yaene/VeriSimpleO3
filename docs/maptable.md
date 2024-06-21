@@ -2,7 +2,6 @@
 
 ## Module: maptable
 ### Inputs
-ex.  
 - clock
 - reset
 - inst:
@@ -10,27 +9,28 @@ ex.
   - inst.rs2 [4:0]
   - inst.rd [4:0]
 - commit
+- old_phys_rd [4:0]
 - recover (TBD)
 ### Outputs
-- inst:
-  - inst.phys_rs1 [4:0]
-  - inst.phys_rs2 [4:0]
-  - inst.old_phys_rd [4:0]
-  - inst.new_phys_rd [4:0]
+- MAPPED_REG_PACKET:
+  - phys_rs1 [4:0]
+  - phys_rs2 [4:0]
+  - old_phys_rd [4:0]
+  - new_phys_rd [4:0]
 
 ### Logic
 Hold the maptable and free list. 
 ```
 # at decode:
-inst.phys_rs1 = maptable[inst.rs1]
-inst.phys_rs2 = maptable[inst.rs2]
-inst.old_phys_rd = maptable[inst.rd]
+mapped_reg_packet.phys_rs1 = maptable[inst.rs1]
+mapped_reg_packet.phys_rs2 = maptable[inst.rs2]
+mapped_reg_packet.old_phys_rd = maptable[inst.rd]
 new_reg = new_phys_reg() # get one register from free list queue
 maptable[inst.rd] = new_reg
-inst.phys_rd = new_reg
+mapped_reg_packet.new_phys_rd = new_reg
 
 # at commit:
-free_phys_reg(inst. old_phys_rd) # add this reg to free list queue
+free_phys_reg(old_phys_rd) # add this reg to free list queue
 
 # at recovery: free all the old_phys_rd of instructions that are to be flushed.
 ```
