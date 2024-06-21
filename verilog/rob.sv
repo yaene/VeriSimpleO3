@@ -1,5 +1,6 @@
 `ifndef __ROB_V__
 `define __ROB_V__
+`define DEBUG
 
 `timescale 1ns/100ps
 
@@ -20,9 +21,16 @@ module rob (input clock,
             output full,                              // is ROB full?
             output [`ROB_TAG_LEN-1:0] alloc_slot,     // rob tag of new instruction
             output [`XLEN-1:0] read_value,            // ROB[read_rob_tag].value
-            output pending_stores,                    // whether there are any pending stores before load
+            output logic pending_stores,                    // whether there are any pending stores before load
             output ROB_ENTRY head_entry,              // the entry of the next instn to commit
-            output head_ready);
+            output head_ready
+            `ifdef DEBUG
+            ,output ROB_ENTRY rob0,
+            output ROB_ENTRY rob1,
+            output ROB_ENTRY rob2,
+            output ROB_ENTRY rob3
+            `endif
+            );
     parameter ROB_SIZE = 4;
     
     logic [`ROB_TAG_LEN-1:0] head, next_head;
@@ -30,6 +38,7 @@ module rob (input clock,
     logic clear_head, allocate_tail;
     logic [`XLEN-1:0] alloc_value;
     logic alloc_value_ready;
+    logic [`ROB_TAG_LEN-1:0] tag_tracking; // to track tags
     
     ROB_ENTRY [ROB_SIZE-1:0] rob; // ROB entries
     
@@ -38,6 +47,8 @@ module rob (input clock,
         if (reset) begin
             head = 0;
             tail = 0;
+            tag_tracking = 0;
+            tag_tracking_next = 0;
             for (int i = 0; i < ROB_SIZE; i++) begin
                 rob[i] <= `EMPTY_ROB_ENTRY;
             end
@@ -114,6 +125,39 @@ module rob (input clock,
         alloc_value_ready = `TRUE;
     end
     end
+
+    // checking whether pending stores exist for the load instruction
+    always_comb begin
+        if (rob[load_rob_tag].valid && (load_rob_tag != head)) begin
+            tag_tracking = load_rob_tag;
+            if (load_rob_tag > head) begin
+                for (int i = 0; i < load_rob_tag - head + 1; i++) begin
+                    tag_tracking = (tag_tracking == 0) ? ROB_SIZE - 1 : tag_tracking - 1;
+                    if (rob[tag_tracking].wr_mem && rob[tag_tracking].address_ready && (rob[tag_tracking].dest_addr == load_address)) begin
+                        pending_stores = `TRUE;
+                    end
+                end
+            end
+            else begin
+                for (int i = 0; i < head - load_rob_tag + 1; i++) begin
+                    tag_tracking = (tag_tracking == 0) ? ROB_SIZE - 1 : tag_tracking - 1;
+                    if (rob[tag_tracking].wr_mem && rob[tag_tracking].address_ready && (rob[tag_tracking].dest_addr == load_address)) begin
+                        pending_stores = `TRUE;
+                    end
+                end
+            end
+        end
+        else begin 
+            pending_stores = `FALSE;
+        end
+    end
+
+    `ifdef DEBUG
+    assign rob0 = rob[0];
+    assign rob1 = rob[1];
+    assign rob2 = rob[2];
+    assign rob3 = rob[3];
+    `endif
     
     // address ready by default on non-stores
     assign head_ready = rob[head].value_ready && rob[head].address_ready;
