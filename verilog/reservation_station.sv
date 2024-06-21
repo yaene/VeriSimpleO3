@@ -3,15 +3,15 @@ module ReservationStation #(
     parameter XLEN = 32
 ) (
     // Input
-    input wire clk,
-    input wire reset,
-    input wire [XLEN-1:0] cdb, // Common Data Bus
+    input clk,
+    input reset,
+    input [XLEN-1:0] cdb, // Common Data Bus
     input ID_EX_PACKET id_packet_out,
     input MAPPED_REG_PACKET mapped_reg_packet,
 
     // Output
-    output reg rs_full,
-    output reg ID_EX_PACKET ready_inst
+    output rs_full,
+    output ID_EX_PACKET ready_inst
 );
 
     // Declare the ready tables
