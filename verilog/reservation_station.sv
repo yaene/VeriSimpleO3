@@ -1,29 +1,30 @@
 module ReservationStation #(
-    parameter RS_DEPTH = 4
+    parameter RS_DEPTH = 4,
+    parameter XLEN = 32
 ) (
-    // input
+    // Input
     input wire clk,
     input wire reset,
-    input wire cdb, // common data bus
+    input wire [XLEN-1:0] cdb, // Common Data Bus
     input ID_EX_PACKET id_packet_out,
     input MAPPED_REG_PACKET mapped_reg_packet,
 
-    // output
-    output wire rs_full,
-    output ID_EX_PACKET ready_inst
+    // Output
+    output reg rs_full,
+    output reg ID_EX_PACKET ready_inst
 );
 
-    
-    REG_READY_ENTRY reg_ready_table [0:`XLEN-1];
+    // Declare the ready tables
+    REG_READY_ENTRY reg_ready_table [0:XLEN-1];
     INSTR_READY_ENTRY instr_ready_table [0:RS_DEPTH-1];
 
     always @(posedge clk or posedge reset) begin
-        if(reset) begin
+        if (reset) begin
             rs_full <= 0;
-            for(integer i = 0; i < `XLEN; i = i + 1) begin
+            for (integer i = 0; i < XLEN; i = i + 1) begin
                 reg_ready_table[i].ready <= 0;
             end
-            for(integer i = 0; i < RS_DEPTH; i = i + 1) begin
+            for (integer i = 0; i < RS_DEPTH; i = i + 1) begin
                 instr_ready_table[i].valid <= 0;
                 instr_ready_table[i].ready <= 0;
                 instr_ready_table[i].birthday <= RS_DEPTH;
@@ -31,6 +32,7 @@ module ReservationStation #(
         end else begin
             // Dispatch Phase Steps
             integer free_slot = -1;
+            // 1. Allocate issue queue (IQ) slot
             for (integer i = 0; i < RS_DEPTH; i = i + 1) begin
                 if (!instr_ready_table[i].valid) begin
                     free_slot = i;
@@ -71,6 +73,8 @@ module ReservationStation #(
                 if (instr_ready_table[i].valid && instr_ready_table[i].ready) begin
                     ready_inst <= instr_ready_table[i].instr;
                     instr_ready_table[i].valid <= 0;
+                    // Mark the destination register as ready
+                    reg_ready_table[instr_ready_table[i].instr.dest].ready <= 1;
                     break;
                 end
             end
@@ -83,6 +87,4 @@ module ReservationStation #(
             end
         end
     end
-
-
 endmodule
