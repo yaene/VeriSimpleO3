@@ -179,6 +179,10 @@ typedef union packed {
 		logic [2:0] funct3;
 		logic [4:0] rd;
 		logic [6:0] opcode;
+		logic [4:0] phys_rs2;
+		logic [4:0] phys_rs1;
+		logic [4:0] old_phys_rd;
+		logic [4:0] new_phys_rd;
 	} r; //register to register instructions
 	struct packed {
 		logic [11:0] imm;
