@@ -129,11 +129,11 @@ module rob (input clock,
     always_comb begin
         if (rob[load_rob_tag].valid && (load_rob_tag != head)) begin
             tag_tracking = (load_rob_tag == 0) ? ROB_SIZE - 1 : load_rob_tag - 1;
-            for (int i = 0; i < ROB_SIZE; i++) begin
-                if (tag_tracking != tail) begin
-                    if (rob[tag_tracking].wr_mem && rob[tag_tracking].address_ready && (rob[tag_tracking].dest_addr == load_address)) begin
-                        pending_stores = `TRUE;
-                    end
+            for (int i = 0; i < ROB_SIZE - 1; i++) begin
+                if (rob[tag_tracking].wr_mem && rob[tag_tracking].address_ready && (rob[tag_tracking].dest_addr == load_address)) begin
+                    pending_stores = `TRUE;
+                end
+                if (tag_tracking != head) begin
                     tag_tracking = (tag_tracking == 0) ? ROB_SIZE - 1 : tag_tracking - 1;
                 end
             end
