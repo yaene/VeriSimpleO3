@@ -73,6 +73,11 @@ typedef struct packed {
 typedef struct packed {
 	logic valid;
 	logic ready;
+  // logic rd_tag;
+  logic rs1_tag;
+  logic rs2_tag;
+  logic rs1_ready;
+  logic rs2_ready;
 	logic birthday;
 	ID_EX_PACKET inst;
 } INSTR_READY_ENTRY;
