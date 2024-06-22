@@ -33,4 +33,4 @@ Below diagram is our basic architecture for milestone 1.
     - Put data into Common Data Bus
 10. **Commit Stage**: write data into memory or register file.
 11. **Register File**: Register File
-12 **Common Data Bus**: Get data from Write Result stage and connect to Reorder Buffer and Reservation Stations.
+12. **Common Data Bus**: Get data from Write Result stage and connect to Reorder Buffer and Reservation Stations.
