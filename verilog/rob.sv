@@ -48,7 +48,6 @@ module rob (input clock,
             head = 0;
             tail = 0;
             tag_tracking = 0;
-            tag_tracking_next = 0;
             for (int i = 0; i < ROB_SIZE; i++) begin
                 rob[i] <= `EMPTY_ROB_ENTRY;
             end
@@ -129,21 +128,13 @@ module rob (input clock,
     // checking whether pending stores exist for the load instruction
     always_comb begin
         if (rob[load_rob_tag].valid && (load_rob_tag != head)) begin
-            tag_tracking = load_rob_tag;
-            if (load_rob_tag > head) begin
-                for (int i = 0; i < load_rob_tag - head + 1; i++) begin
-                    tag_tracking = (tag_tracking == 0) ? ROB_SIZE - 1 : tag_tracking - 1;
+            tag_tracking = (load_rob_tag == 0) ? ROB_SIZE - 1 : load_rob_tag - 1;
+            for (int i = 0; i < ROB_SIZE; i++) begin
+                if (tag_tracking != tail) begin
                     if (rob[tag_tracking].wr_mem && rob[tag_tracking].address_ready && (rob[tag_tracking].dest_addr == load_address)) begin
                         pending_stores = `TRUE;
                     end
-                end
-            end
-            else begin
-                for (int i = 0; i < head - load_rob_tag + 1; i++) begin
                     tag_tracking = (tag_tracking == 0) ? ROB_SIZE - 1 : tag_tracking - 1;
-                    if (rob[tag_tracking].wr_mem && rob[tag_tracking].address_ready && (rob[tag_tracking].dest_addr == load_address)) begin
-                        pending_stores = `TRUE;
-                    end
                 end
             end
         end

@@ -73,6 +73,14 @@ output head_ready);                       // whether instruction at head is read
   1. observe whether instruction is ready to commit at _head_ready_
   2. if yes, use rob entry exposed at _head_entry_ to write value back to register or memory
 
+#### Load Buffer
+
+- checking whether there are pending store instructions ahead of the load instruction waiting in load buffer
+  1. check whether there is a vaild instruction with a given *load_rob_tag*
+  2. ignore if the load instruction is the head
+  3. check whether there are store instructions with same address ahead of the load instruction and set *pending_stores* TRUE.
+  4. Otherwise, *pending_stores* is FALSE (also by default)
+
 ### Implementation Details
 
 - ROB automatically frees slot of commited instruction one cycle after it becomes ready (ROB expects commit stage to consume instruction in one cycle)
@@ -84,3 +92,7 @@ output head_ready);                       // whether instruction at head is read
 
 - 6/20:
   - added reorder buffer interface and usage description
+- 6/21:
+  - added checking pending store instrucitons for load buffer
+- 6/22:
+  - modify checking pending stores logic to be synthesizable
