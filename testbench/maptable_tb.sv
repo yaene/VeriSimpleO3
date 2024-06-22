@@ -1,60 +1,151 @@
-`timescale 1ns/100ps
+`timescale 1ns / 100ps
 
 module maptable_tb;
 
-  // Declare testbench signals
+  // Declare inputs as logic variables
   logic clock;
   logic reset;
   logic commit;
+  logic [`ROB_TAG_LEN-1:0] rob_tag_entry_in;
+  logic [`ROB_TAG_LEN-1:0] rob_tag_entry_commit;
+  logic [4:0] rd;
+  logic [4:0] rd_commit;
   INST inst;
-  logic [4:0] old_phys_rd;
-  MAPPED_REG_PACKET mapped_reg_packet;
+  MAPTABLE_PACKET maptable_packet_rs1, maptable_packet_rs2;
 
   // Instantiate the maptable module
   maptable uut (
     .clock(clock),
     .reset(reset),
     .commit(commit),
+    .rob_tag_entry_in(rob_tag_entry_in),
     .inst(inst),
-    .old_phys_rd(old_phys_rd),
-    .mapped_reg_packet(mapped_reg_packet)
+    .rd(rd),
+    .rd_commit(rd_commit),
+    .rob_tag_entry_commit(rob_tag_entry_commit),
+    .maptable_packet_rs1(maptable_packet_rs1),
+    .maptable_packet_rs2(maptable_packet_rs2)
   );
 
   // Clock generation
-  always #5 clock = ~clock; // 100MHz clock
-
   initial begin
-    // Initialize signals
-    clock = 0;
-    reset = 0;
-    commit = 0;
-    inst = '0;
-    old_phys_rd = '0;
+    clock = 1'b0;
+    forever #5 clock = ~clock; // 10ns period
+  end
 
-    // Apply reset
+  // Test stimulus
+  initial begin
+    // Initialize inputs
     reset = 1;
-    #20;
+    commit = 0;
+    rob_tag_entry_in = 0;
+    inst.r.rs1 = 0;
+    inst.r.rs2 = 0;
+    rd = 0;
+    rd_commit = 0;
+    
+    // Wait for some time and then release reset
+    #10;
     reset = 0;
 
-    // Test case 1: simple instruction mapping
-    inst.r.rs1 = 1;
-    inst.r.rs2 = 2;
-    inst.r.rd = 3;
-
-    #10; // wait for clock edge to capture the instruction
-
-    // Check the results
-    assert(mapped_reg_packet.phys_rs1 == 5'b00001);
-    assert(mapped_reg_packet.phys_rs2 == 5'b00010);
-    assert(mapped_reg_packet.old_phys_rd == 5'b00011);
-    assert(mapped_reg_packet.new_phys_rd != 5'b00000);
-
-    // Test case 2: commit instruction
+    // Test based on P6 slide
+    // cycle 1
+    rd = 1;
+    rob_tag_entry_in = 1;
+    inst.r.rs1 = 0;
+    inst.r.rs2 = 3;
+    #10;
+    assert(maptable_packet_rs1.rob_tag_val == 0);
+    assert(maptable_packet_rs1.rob_tag_ready == 0);
+    assert(maptable_packet_rs2.rob_tag_val == 0);
+    assert(maptable_packet_rs2.rob_tag_ready == 0);
+    // cycle 2
+    rd = 2;
+    rob_tag_entry_in = 2;
+    inst.r.rs1 = 0;
+    inst.r.rs2 = 1;
+    #10;
+    assert(maptable_packet_rs1.rob_tag_val == 0);
+    assert(maptable_packet_rs1.rob_tag_ready == 0);
+    assert(maptable_packet_rs2.rob_tag_val == 1);
+    assert(maptable_packet_rs2.rob_tag_ready == 0);
+    // cycle 3
+    rd = 0;
+    rob_tag_entry_in = 3;
+    inst.r.rs1 = 2;
+    inst.r.rs2 = 3;
+    #10;
+    assert(maptable_packet_rs1.rob_tag_val == 2);
+    assert(maptable_packet_rs1.rob_tag_ready == 0);
+    assert(maptable_packet_rs2.rob_tag_val == 0);
+    assert(maptable_packet_rs2.rob_tag_ready == 0);
+    // cycle 4
+    rd = 3;
     commit = 1;
-    old_phys_rd = mapped_reg_packet.old_phys_rd;
-
-    #30; // wait for clock edge to capture the commit
-
+    rd_commit = 1;
+    rob_tag_entry_commit = 1;
+    rob_tag_entry_in = 4;
+    inst.r.rs1 = 3;
+    inst.r.rs2 = 4;
+    #10;
+    assert(maptable_packet_rs1.rob_tag_val == 0);
+    assert(maptable_packet_rs1.rob_tag_ready == 0);
+    assert(maptable_packet_rs2.rob_tag_val == 0);
+    assert(maptable_packet_rs2.rob_tag_ready == 0);
+    assert(uut.maptable[1] == 1);
+    assert(uut.ready_tag_table[1] == 1);
+    // cycle 5
+    commit = 0;
+    rd = 1;
+    rob_tag_entry_in = 5;
+    inst.r.rs1 = 0;
+    inst.r.rs2 = 3;
+    #10;
+    assert(maptable_packet_rs1.rob_tag_val == 0);
+    assert(maptable_packet_rs1.rob_tag_ready == 0);
+    assert(maptable_packet_rs2.rob_tag_val == 4);
+    assert(maptable_packet_rs2.rob_tag_ready == 0);
+    // cycle 6
+    rd = 2;
+    rob_tag_entry_in = 6;
+    inst.r.rs1 = 0;
+    inst.r.rs2 = 1;
+    #10;
+    assert(maptable_packet_rs1.rob_tag_val == 0);
+    assert(maptable_packet_rs1.rob_tag_ready == 0);
+    assert(maptable_packet_rs2.rob_tag_val == 5);
+    assert(maptable_packet_rs2.rob_tag_ready == 0);
+    // cycle 7
+    commit = 1;
+    rd_commit = 3;
+    rob_tag_entry_commit = 4;
+    rd = 0;
+    inst.r.rs1 = 0;
+    inst.r.rs2 = 0;
+    #10;
+    assert(uut.maptable[3] == 4);
+    assert(uut.ready_tag_table[3] == 1);
+    // cycle 8
+    rd_commit = 2;
+    rob_tag_entry_commit = 2;
+    #10;
+    assert(uut.maptable[2] == 6);
+    assert(uut.ready_tag_table[3] == 0);
+    // cycle 9
+    rd_commit = 1;
+    rob_tag_entry_commit = 5;
+    rd = 0;
+    rob_tag_entry_in = 7;
+    inst.r.rs1 = 2;
+    inst.r.rs2 = 3;
+    #10;
+    assert(maptable_packet_rs1.rob_tag_val == 6);
+    assert(maptable_packet_rs1.rob_tag_ready == 0);
+    assert(maptable_packet_rs2.rob_tag_val == 4);
+    assert(maptable_packet_rs2.rob_tag_ready == 1);
+    assert(uut.maptable[1] == 5);
+    assert(uut.ready_tag_table[1] == 1);
+    #10;
     $finish;
   end
 

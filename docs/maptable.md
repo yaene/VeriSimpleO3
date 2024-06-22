@@ -2,42 +2,27 @@
 
 ## Module: maptable
 ### Inputs
-- clock
-- reset
-- inst:
-  - inst.rs1 [4:0]
-  - inst.rs2 [4:0]
-  - inst.rd [4:0]
-- commit
-- old_phys_rd [4:0]
-- recover (TBD)
+- logic clock,
+- logic reset,
+- logic commit,
+- INST inst, //inst from decoding stage
+- logic [`ROB_TAG_LEN-1:0] rob_tag_entry_in, // rob entry from ROB
+- logic [4:0] rd, // dest_reg from decoding stage
+- logic [4:0] rd_commit, // dest_reg from CDB
+- logic [`ROB_TAG_LEN-1:0] rob_tag_entry_commit, // rob entry from CDB
 ### Outputs
-- MAPPED_REG_PACKET:
-  - phys_rs1 [4:0]
-  - phys_rs2 [4:0]
-  - old_phys_rd [4:0]
-  - new_phys_rd [4:0]
+- MAPTABLE_PACKET maptable_packet_rs1,
+- MAPTABLE_PACKET maptable_packet_rs2
 
 ### Logic
-Hold the maptable and free list. 
-```
-# at decode:
-mapped_reg_packet.phys_rs1 = maptable[inst.rs1]
-mapped_reg_packet.phys_rs2 = maptable[inst.rs2]
-mapped_reg_packet.old_phys_rd = maptable[inst.rd]
-new_reg = new_phys_reg() # get one register from free list queue
-maptable[inst.rd] = new_reg
-mapped_reg_packet.new_phys_rd = new_reg
+Hold the maptable. 
 
-# at commit:
-free_phys_reg(old_phys_rd) # add this reg to free list queue
-
-# at recovery: free all the old_phys_rd of instructions that are to be flushed.
-```
-- Upon receiving instructions without commit signal, allocate a physical register for output register by changing maptable and deque one register from free list.
-- Upon receiving instructions with commit signal, free the old physical register for output.
-- Upon recovery, free all the old_phys_rd of instructions that are to be flushed.
+- Upon receiving instructions from decoding stage, first send out the `MAPTABLE_PACKET` for `rs1` and `rs2`, then update the rd entry of the maptable using the `rob_tag_entry_in`.
+- Upon receiving commit signal, update the rd entry of the ready bit table using data from CDB (when then rob_tag does not meet, don't update).
+- Upon recovery, clear the maptable.
 
 ### Changelog
 - 6/21:
   - build a basic maptable
+- 6/22:
+  - modify maptable to fit P6 structure.
