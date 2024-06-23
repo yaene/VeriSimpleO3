@@ -64,22 +64,20 @@ typedef enum logic [3:0] {
 // Datapath control signals
 //
 //////////////////////////////////////////////
-typedef struct packed {
-	logic ready;
-	logic [`XLEN-1:0] value;
-} REG_READY_ENTRY;
 
 
 typedef struct packed {
 	logic valid;
 	logic ready;
-  // logic rd_tag;
+  logic rd_tag;
   logic rs1_tag;
   logic rs2_tag;
   logic rs1_ready;
   logic rs2_ready;
+  logic rs1_value;
+  logic rs2_value;
 	logic birthday;
-	ID_EX_PACKET inst;
+	INST inst;
 } INSTR_READY_ENTRY;
 
 //////////////////////////////////////////////
