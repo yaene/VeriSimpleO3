@@ -22,6 +22,9 @@ module rob (input clock,
             output [`ROB_TAG_LEN-1:0] alloc_slot,     // rob tag of new instruction
             output [`XLEN-1:0] read_value,            // ROB[read_rob_tag].value
             output logic pending_stores,                    // whether there are any pending stores before load
+            output [4:0] wr_dest_reg,                       // the destination register of the instruction writing back (for map table update)
+            output [`ROB_TAG_LEN-1:0] wr_rob_tag,                        // the tag of the instruction writing back (for map table update)
+            output wr_valid,                          // whether there is an instruction writing back
             output ROB_ENTRY head_entry,              // the entry of the next instn to commit
             output head_ready
             `ifdef DEBUG
@@ -159,6 +162,11 @@ module rob (input clock,
     // we allow for overwriting of just commited head by new entry
     assign clear_head    = head_ready && !(alloc_enable && tail == head);
     assign allocate_tail = alloc_enable && !full;
+
+    // find dest reg for cdb data and repackage signals for map table
+    assign wr_dest_reg = rob[cdb_data.rob_tag].dest_reg;
+    assign wr_rob_tag = cdb_data.rob_tag;
+    assign wr_valid = cdb_data.valid;
 endmodule
     
 `endif

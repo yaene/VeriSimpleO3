@@ -16,6 +16,9 @@ module rob_testbench();
     logic [`ROB_TAG_LEN-1:0] read_rob_tag; // rob entry to read value from
     logic [`XLEN-1:0] load_address;        // to check for any pending stores
     logic [`ROB_TAG_LEN-1:0] load_rob_tag; // rob entry of load to check for pending stores
+    logic [4:0] wr_dest_reg;                       
+    logic [`ROB_TAG_LEN-1:0] wr_rob_tag;                        
+    logic wr_valid;                          
     
     logic full;                           // is ROB full?
     logic [`ROB_TAG_LEN-1:0] alloc_slot;  // rob tag of new instruction
@@ -41,6 +44,9 @@ module rob_testbench();
     .read_rob_tag (read_rob_tag),
     .load_address (load_address),
     .load_rob_tag (load_rob_tag),
+    .wr_dest_reg (wr_dest_reg),                       
+    .wr_rob_tag (wr_rob_tag),                       
+    .wr_valid ( wr_valid),                          
     .full (full),
     .alloc_slot (alloc_slot),
     .read_value (read_value),
@@ -90,6 +96,9 @@ module rob_testbench();
         CHECK_VAL("next slot", alloc_slot, 2);
         CHECK_VAL("head ready", head_ready, `TRUE);
         CHECK_VAL("head value", head_entry.value, 5);
+        CHECK_VAL("wr dest reg", wr_dest_reg, 3);
+        CHECK_VAL("wr valid", wr_valid, 1);
+        CHECK_VAL("wr rob tag", wr_rob_tag, entry);
         alloc_enable = 1;
         dest_reg = 1;
 
@@ -120,6 +129,7 @@ module rob_testbench();
         CHECK_VAL("head ready", head_ready, 1);
         CHECK_VAL("head value", head_entry.value, 11);
         CHECK_VAL("head valid", head_entry.valid, 1);
+        CHECK_VAL("wr valid", wr_valid, 0);
 
         @(negedge clock)
         CHECK_VAL("head ready", head_ready, 0);
