@@ -7,13 +7,14 @@ module maptable(
   // Inputs
   input logic clock,
   input logic reset,
-  input logic commit, // writeback signal from ROB
-  input logic [4:0] rd_commit, // writeback reg from ROB
+  input logic commit,
+  input logic [4:0] rd_commit,
   input INST inst, //inst from decoding stage
   input logic [`ROB_TAG_LEN-1:0] rob_entry_in, // rob entry from ROB
   input logic [4:0] rd, // dest_reg from decoding stage
-  input logic [4:0] rd_cdb, // dest_reg from CDB
-  input logic [`ROB_TAG_LEN-1:0] rob_entry_cdb, // rob entry from CDB
+  input logic valid_wb, // valid from wb from ROB
+  input logic [4:0] rd_wb, // dest_reg from wb
+  input logic [`ROB_TAG_LEN-1:0] rob_entry_wb, // rob entry from wb from ROB
 
   // Outputs
   output MAPTABLE_PACKET maptable_packet_rs1,
@@ -33,8 +34,8 @@ module maptable(
         ready_tag_table[i] = 0;
       end
     end
-    if ((rd_cdb != `ZERO_REG) && (rob_entry_cdb == maptable[rd_cdb]))
-      ready_tag_table[rd_cdb] = 1;
+    if ((valid_wb) && (rd_wb != `ZERO_REG) && (rob_entry_wb == maptable[rd_wb]))
+      ready_tag_table[rd_wb] = 1;
     if (commit) begin
       maptable[rd_commit] = 0;
       ready_tag_table[rd_commit] = 0;
