@@ -27,6 +27,33 @@ module maptable(
   logic ready_tag_table[31:0];
 
 
+  // mapped rs1
+  always_comb begin
+
+    if (valid_wb && rob_entry_wb == maptable[inst.r.rs1]) begin
+      // forwarding
+      maptable_packet_rs1.rob_tag_ready = `TRUE;
+    end
+    else begin
+      maptable_packet_rs1.rob_tag_ready = ready_tag_table[inst.r.rs1];
+    end
+
+    maptable_packet_rs1.rob_tag_val = maptable[inst.r.rs1];
+  end
+
+  // mapped rs2
+  always_comb begin
+    if (valid_wb && rob_entry_wb == maptable[inst.r.rs2]) begin
+      // forwarding
+      maptable_packet_rs2.rob_tag_ready = `TRUE;
+    end
+    else begin
+      maptable_packet_rs2.rob_tag_ready = ready_tag_table[inst.r.rs2];
+    end
+
+    maptable_packet_rs2.rob_tag_val = maptable[inst.r.rs2];
+  end
+
   always_ff @(posedge clock) begin
     if (reset) begin
       integer i;
@@ -41,10 +68,6 @@ module maptable(
       maptable[rd_commit] = 0;
       ready_tag_table[rd_commit] = 0;
     end
-    maptable_packet_rs1.rob_tag_val = maptable[inst.r.rs1];
-    maptable_packet_rs2.rob_tag_val = maptable[inst.r.rs2];    
-    maptable_packet_rs1.rob_tag_ready = ready_tag_table[inst.r.rs1];
-    maptable_packet_rs2.rob_tag_ready = ready_tag_table[inst.r.rs2];
     if (rd != `ZERO_REG) begin
       maptable[rd] = rob_entry_in;
       ready_tag_table[rd] = 0;
