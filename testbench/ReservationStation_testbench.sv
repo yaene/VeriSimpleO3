@@ -8,7 +8,7 @@ module testbench;
   ID_EX_PACKET id_packet_out;
   MAPTABLE_PACKET maptable_packet_rs1;
   MAPTABLE_PACKET maptable_packet_rs2;
-  logic [3:0] alloc_slot;
+  logic [`ROB_TAG_LEN:0] alloc_slot;
   logic rs_st_ld_full;
   logic rs_alu_full;
   INSTR_READY_ENTRY ready_inst_entry_st_ld;

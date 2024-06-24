@@ -7,14 +7,16 @@
 - reset
 - cdb: Common data bus packet
 - ID_EX_PACKET id_packet_out 
-- MAPPED_REG_PACKET maptable_packet_rs1: rs1 rob_tag_value
-- MAPPED_REG_PACKET maptable_packet_rs2: rs2 rob_tag_value
+- MAPTABLE_PACKET maptable_packet_rs1: rs1 maptable packet
+- MAPTABLE_PACKET maptable_packet_rs2: rs2 maptable packet
 - [`ROB_TAG_LEN-1:0] alloc_slot
+- enable: whether this RS is enabled
+
 
 ### Outputs
 
-- rs_full: signal indicating whether the reservation station is full  
-- INSTR_READY_ENTRY ready_inst_entry: output ready instruction entry
+- rs_full: signal indicating whether the RS is full
+- NSTR_READY_ENTRY ready_inst_entry: output RS entry to execution unit
 
 ### Logic
 Hold a instruction and wait for all operands ready. Then deliver ready instr to functional units.
