@@ -54,7 +54,7 @@ module maptable_tb;
     valid_wb = 0;
     
     // Wait for some time and then release reset
-    #10;
+    @(negedge clock)
     reset = 0;
 
     // Test based on P6 slide
@@ -63,7 +63,7 @@ module maptable_tb;
     rob_entry_in = 1;
     inst.r.rs1 = 0;
     inst.r.rs2 = 3;
-    #10;
+    @(negedge clock)
     assert(maptable_packet_rs1.rob_tag_val == 0);
     assert(maptable_packet_rs1.rob_tag_ready == 0);
     assert(maptable_packet_rs2.rob_tag_val == 0);
@@ -73,7 +73,7 @@ module maptable_tb;
     rob_entry_in = 2;
     inst.r.rs1 = 0;
     inst.r.rs2 = 1;
-    #10;
+    @(negedge clock)
     assert(maptable_packet_rs1.rob_tag_val == 0);
     assert(maptable_packet_rs1.rob_tag_ready == 0);
     assert(maptable_packet_rs2.rob_tag_val == 1);
@@ -83,7 +83,7 @@ module maptable_tb;
     rob_entry_in = 3;
     inst.r.rs1 = 2;
     inst.r.rs2 = 3;
-    #10;
+    @(negedge clock)
     assert(maptable_packet_rs1.rob_tag_val == 2);
     assert(maptable_packet_rs1.rob_tag_ready == 0);
     assert(maptable_packet_rs2.rob_tag_val == 0);
@@ -96,7 +96,7 @@ module maptable_tb;
     rob_entry_in = 4;
     inst.r.rs1 = 3;
     inst.r.rs2 = 4;
-    #10;
+    @(negedge clock)
     assert(maptable_packet_rs1.rob_tag_val == 4);
     assert(maptable_packet_rs1.rob_tag_ready == 0);
     assert(maptable_packet_rs2.rob_tag_val == 0);
@@ -109,7 +109,7 @@ module maptable_tb;
     rob_entry_in = 5;
     inst.r.rs1 = 0;
     inst.r.rs2 = 3;
-    #10;
+    @(negedge clock)
     assert(maptable_packet_rs1.rob_tag_val == 0);
     assert(maptable_packet_rs1.rob_tag_ready == 0);
     assert(maptable_packet_rs2.rob_tag_val == 4);
@@ -119,7 +119,7 @@ module maptable_tb;
     rob_entry_in = 6;
     inst.r.rs1 = 0;
     inst.r.rs2 = 1;
-    #10;
+    @(negedge clock)
     assert(maptable_packet_rs1.rob_tag_val == 0);
     assert(maptable_packet_rs1.rob_tag_ready == 0);
     assert(maptable_packet_rs2.rob_tag_val == 5);
@@ -131,13 +131,13 @@ module maptable_tb;
     rd = 0;
     inst.r.rs1 = 0;
     inst.r.rs2 = 0;
-    #10;
+    @(negedge clock)
     assert(uut.maptable[3] == 4);
     assert(uut.ready_tag_table[3] == 1);
     // cycle 8
     rd_wb = 2;
     rob_entry_wb = 2;
-    #10;
+    @(negedge clock)
     assert(uut.maptable[2] == 6);
     assert(uut.ready_tag_table[2] == 0);
     // cycle 9
@@ -147,7 +147,7 @@ module maptable_tb;
     rob_entry_in = 7;
     inst.r.rs1 = 2;
     inst.r.rs2 = 3;
-    #10;
+    @(negedge clock)
     assert(maptable_packet_rs1.rob_tag_val == 6);
     assert(maptable_packet_rs1.rob_tag_ready == 0);
     assert(maptable_packet_rs2.rob_tag_val == 4);
@@ -161,27 +161,26 @@ module maptable_tb;
     rob_entry_in = 8;
     inst.r.rs1 = 2;
     inst.r.rs2 = 3;
-    #5;
     assert(maptable_packet_rs1.rob_tag_val == 6);
     assert(maptable_packet_rs1.rob_tag_ready == 1);
     assert(maptable_packet_rs2.rob_tag_val == 4);
     assert(maptable_packet_rs2.rob_tag_ready == 1);
     assert(uut.maptable[2] == 6);
     assert(uut.ready_tag_table[2] == 0);
-    #5;
+    @(negedge clock)
     assert(uut.ready_tag_table[2] == 1);
     // test commit
     valid_wb = 0;
     commit = 1;
     rd_commit = 2;
     rob_entry_commit = 6;
-    #10;
+    @(negedge clock)
     assert(uut.maptable[2] == 0);
     assert(uut.ready_tag_table[2]==0);
-    #10;
+    @(negedge clock)
     rd_commit = 1;
     rob_entry_commit = 3;
-    #10;
+    @(negedge clock)
     assert(uut.maptable[1] != 0);
     $finish;
   end
