@@ -9,7 +9,7 @@
 - ID_EX_PACKET id_packet_out 
 - MAPPED_REG_PACKET maptable_packet_rs1: rs1 rob_tag_value
 - MAPPED_REG_PACKET maptable_packet_rs2: rs2 rob_tag_value
-- MAPPED_REG_PACKET maptable_packet_rd: rd rob_tag_value
+- [`ROB_TAG_LEN-1:0] alloc_slot
 
 ### Outputs
 
