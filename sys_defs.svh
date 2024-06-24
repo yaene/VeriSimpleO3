@@ -263,6 +263,14 @@ typedef struct packed {
     logic [`XLEN-1:0] value;
 } CDB_DATA;
 
+// Map table
+
+typedef struct packed {
+	logic [`ROB_TAG_LEN - 1:0] rob_tag_val;
+	logic rob_tag_ready;
+} MAPTABLE_PACKET;
+
+
 
 //////////////////////////////////////////////
 //
