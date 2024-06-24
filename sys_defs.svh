@@ -235,12 +235,6 @@ typedef union packed {
 
 } INST; //instruction typedef, this should cover all types of instructions
 
-`define ROB_TAG_LEN 4
-typedef struct packed {
-	logic [`ROB_TAG_LEN - 1:0] rob_tag_val;
-	logic rob_tag_ready;
-} MAPTABLE_PACKET;
-
 //
 // Basic NOP instruction.  Allows pipline registers to clearly be reset with
 // an instruction that does nothing instead of Zero which is really an ADDI x0, x0, 0
@@ -268,6 +262,14 @@ typedef struct packed {
     logic [`ROB_TAG_LEN-1:0] rob_tag; // identifies instruction that produced value
     logic [`XLEN-1:0] value;
 } CDB_DATA;
+
+// Map table
+
+typedef struct packed {
+	logic [`ROB_TAG_LEN - 1:0] rob_tag_val;
+	logic rob_tag_ready;
+} MAPTABLE_PACKET;
+
 
 
 //////////////////////////////////////////////
