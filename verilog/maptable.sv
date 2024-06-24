@@ -9,6 +9,7 @@ module maptable(
   input logic reset,
   input logic commit,
   input logic [4:0] rd_commit,
+  input logic [`ROB_TAG_LEN-1:0] rob_entry_commit,
   input INST inst, //inst from decoding stage
   input logic [`ROB_TAG_LEN-1:0] rob_entry_in, // rob entry from ROB
   input logic [4:0] rd, // dest_reg from decoding stage
@@ -36,7 +37,7 @@ module maptable(
     end
     if ((valid_wb) && (rd_wb != `ZERO_REG) && (rob_entry_wb == maptable[rd_wb]))
       ready_tag_table[rd_wb] = 1;
-    if (commit) begin
+    if ((commit) && (rd_commit != `ZERO_REG) && (rob_entry_commit == maptable[rd_commit])) begin
       maptable[rd_commit] = 0;
       ready_tag_table[rd_commit] = 0;
     end

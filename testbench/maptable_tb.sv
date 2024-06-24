@@ -9,6 +9,7 @@ module maptable_tb;
   logic [4:0] rd_commit;
   logic [`ROB_TAG_LEN-1:0] rob_entry_in;
   logic [`ROB_TAG_LEN-1:0] rob_entry_wb;
+  logic [`ROB_TAG_LEN-1:0] rob_entry_commit;
   logic [4:0] rd;
   logic [4:0] rd_wb;
   logic valid_wb;
@@ -21,6 +22,7 @@ module maptable_tb;
     .reset(reset),
     .commit(commit),
     .rd_commit(rd_commit),
+    .rob_entry_commit(rob_entry_commit),
     .rob_entry_in(rob_entry_in),
     .inst(inst),
     .rd(rd),
@@ -42,11 +44,13 @@ module maptable_tb;
     // Initialize inputs
     reset = 1;
     commit = 0;
+    rob_entry_commit = 0;
     rob_entry_in = 0;
     inst.r.rs1 = 0;
     inst.r.rs2 = 0;
     rd = 0;
     rd_wb = 0;
+    rob_entry_wb = 0;
     valid_wb = 0;
     
     // Wait for some time and then release reset
@@ -154,10 +158,15 @@ module maptable_tb;
     valid_wb = 0;
     commit = 1;
     rd_commit = 2;
+    rob_entry_commit = 6;
     #10;
     assert(uut.maptable[2] == 0);
     assert(uut.ready_tag_table[2]==0);
     #10;
+    rd_commit = 1;
+    rob_entry_commit = 3;
+    #10;
+    assert(uut.maptable[1] != 0);
     $finish;
   end
 
