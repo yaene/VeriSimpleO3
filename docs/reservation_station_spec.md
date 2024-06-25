@@ -33,10 +33,10 @@ Hold a instruction and wait for all operands ready. Then deliver ready instr to 
   - `rs1_ready`: If `rs1_tag` is zero, then the value can be directly obtained from regfile, and it is set to be 1. Else, it equals to `maptable_packet_rs1.rob_tag_ready`
   - `rs2_ready`: If `rs2_tag` is zero, then the value can be directly obtained from regfile, and it is set to be 1. Else, it equals to `maptable_packet_rs2.rob_tag_ready`
   - `ready`: 
-    - For ST instruction, set to 1 when rs2_ready == 1
-    - For LD instruction, set to 1 when rs1_ready == 1
+    - For ST/LD instruction, set to 1 when rs1_ready == 1
     - For other instructions, set to 1 when (rs1_ready == 1 && rs2_ready == 1)
   - `birthday`: the oldest instruction allocated to RS has birthday = 0, and increase by 1 for each later new allocated instruction
+    - when overflow, sort all current slot by birthdays, and reassign birthday based on their values.
 - `Wait for CDB`
   - fill rs1/rs2 value when cdb.rob_tag maps with the rs1/rs2 tag
 - `Output ready RS slot with the oldest birthday`

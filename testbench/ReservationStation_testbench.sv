@@ -11,6 +11,7 @@ module testbench;
   logic [`ROB_TAG_LEN:0] alloc_slot;
   logic rs_st_ld_full;
   logic rs_alu_full;
+  logic NO_WAIT_RS2;
   INSTR_READY_ENTRY ready_inst_entry_st_ld;
   INSTR_READY_ENTRY ready_inst_entry_alu;
 
@@ -20,6 +21,7 @@ module testbench;
     .reset(reset),
     .cdb(cdb), 
     .enable(is_st_ld_type),
+    .NO_WAIT_RS2(NO_WAIT_RS2),
     .id_packet_out(id_packet_out),
     .maptable_packet_rs1(maptable_packet_rs1),
     .maptable_packet_rs2(maptable_packet_rs2),
@@ -28,11 +30,12 @@ module testbench;
     .ready_inst_entry(ready_inst_entry_st_ld)
   );
 
-  ReservationStation ALU_RS (
+  ReservationStation  ALU_RS (
     .clk(clk),
     .reset(reset),
     .cdb(cdb), 
     .enable(~is_st_ld_type),
+    .NO_WAIT_RS2(NO_WAIT_RS2),
     .id_packet_out(id_packet_out),
     .maptable_packet_rs1(maptable_packet_rs1),
     .maptable_packet_rs2(maptable_packet_rs2),
@@ -65,6 +68,7 @@ module testbench;
     // ldf X(r1), f1, [r1]=5
     id_packet_out.wr_mem = 0;
     id_packet_out.rd_mem = 1;
+    NO_WAIT_RS2 = 1;
     id_packet_out.rs1_value = 5;
     maptable_packet_rs1.rob_tag_val = 0;
     alloc_slot = 1;
@@ -73,6 +77,7 @@ module testbench;
     //mulf f0, f1, f2, [f0]=10
     id_packet_out.wr_mem = 0;
     id_packet_out.rd_mem = 0;
+    NO_WAIT_RS2 = 0;
     maptable_packet_rs2.rob_tag_val = 1;
     maptable_packet_rs2.rob_tag_ready = 0; 
     id_packet_out.rs1_value = 10;
@@ -82,6 +87,7 @@ module testbench;
     //stf f2, Z(r1)
     id_packet_out.wr_mem = 1;
     id_packet_out.rd_mem = 0;
+    NO_WAIT_RS2 = 1;
     id_packet_out.rs1_value = 5;
     maptable_packet_rs2.rob_tag_val = 2;
     maptable_packet_rs2.rob_tag_ready = 0;
@@ -94,6 +100,7 @@ module testbench;
     //addi r1,4, r1
     id_packet_out.wr_mem = 0;
     id_packet_out.rd_mem = 0;
+    NO_WAIT_RS2 = 0;
     id_packet_out.rs1_value = 5;
     alloc_slot = 4;
     cdb.rob_tag = 1;
@@ -103,6 +110,7 @@ module testbench;
     //ldf X(r1),f1
     id_packet_out.wr_mem = 0;
     id_packet_out.rd_mem = 1;
+    NO_WAIT_RS2 = 1;
     maptable_packet_rs2.rob_tag_val = 4;
     maptable_packet_rs2.rob_tag_ready = 0;
     alloc_slot = 5;

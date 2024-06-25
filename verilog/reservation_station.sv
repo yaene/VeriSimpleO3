@@ -1,5 +1,4 @@
 `timescale 1ns/100ps
-
 module ReservationStation (
     // Input
     input clk,
@@ -8,9 +7,9 @@ module ReservationStation (
     input ID_EX_PACKET id_packet_out,
     input MAPTABLE_PACKET maptable_packet_rs1,
     input MAPTABLE_PACKET maptable_packet_rs2,
-    // input [`ROB_TAG_LEN-1:0] alloc_slot,
-    input [3:0] alloc_slot,
+    input [`ROB_TAG_LEN-1:0] alloc_slot,
     input enable,
+    input NO_WAIT_RS2,
 
     // Output
     output logic rs_full,
@@ -18,28 +17,18 @@ module ReservationStation (
 );
 
     INSTR_READY_ENTRY instr_ready_table [0:`RS_DEPTH-1];
+    INSTR_READY_ENTRY sorted_instr_ready_table [0:`RS_DEPTH-1];
     logic [`BIRTHDAY_SIZE-1:0] max_birthday = 0;
     logic [`BIRTHDAY_SIZE-1:0] oldest_birthday;
     logic found_ready_instr = 0;
     integer free_slot;
+    
+    generate
+        for (genvar i = 0; i < `RS_DEPTH; i = i + 1) begin
+            assign instr_ready_table[i].ready = instr_ready_table[i].rs1_ready & (instr_ready_table[i].rs2_ready | NO_WAIT_RS2);
+        end
+    endgenerate
 
-    always_comb begin
-        if (id_packet_out.rd_mem) begin // Not ST/LD instruction
-            for (integer i = 0; i < `RS_DEPTH; i = i + 1) begin
-              instr_ready_table[i].ready = instr_ready_table[i].rs1_ready;
-            end
-        end
-        else if (id_packet_out.wr_mem) begin // ST instruction
-            for (integer i = 0; i < `RS_DEPTH; i = i + 1) begin
-              instr_ready_table[i].ready = instr_ready_table[i].rs2_ready;
-            end
-        end
-        else begin // LD instruction
-            for (integer i = 0; i < `RS_DEPTH; i = i + 1) begin
-              instr_ready_table[i].ready = instr_ready_table[i].rs1_ready & instr_ready_table[i].rs2_ready;
-            end
-        end
-    end
 
     always_ff @(posedge clk or posedge reset) begin
         if (reset) begin
@@ -78,8 +67,33 @@ module ReservationStation (
                 instr_ready_table[free_slot].rs1_ready = (instr_ready_table[free_slot].rs1_tag == 0)? 1: maptable_packet_rs1.rob_tag_ready;
                 instr_ready_table[free_slot].rs2_ready = (instr_ready_table[free_slot].rs2_tag == 0)? 1: maptable_packet_rs2.rob_tag_ready;
                 instr_ready_table[free_slot].birthday = max_birthday; 
-                max_birthday = max_birthday + 1;
                 instr_ready_table[free_slot].instr = id_packet_out;
+
+                //next instr will cause overflow
+                if (max_birthday == `MAX_BIRTHDAY) begin
+                    // sort
+                    integer valid_count = 0;
+                    for (integer i = 0; i < `RS_DEPTH; i = i + 1) begin
+                        if (instr_ready_table[i].valid) begin
+                            sorted_instr_ready_table[valid_count] = instr_ready_table[i];
+                            valid_count = valid_count + 1;
+                        end
+                    end
+                    // reassign birthday
+                    for (integer i = 0; i < valid_count; i = i + 1) begin
+                        sorted_instr_ready_table[i].birthday = i;
+                    end
+                    for (integer i = valid_count; i < `RS_DEPTH; i = i + 1) begin
+                        sorted_instr_ready_table[i].valid = 0;
+                    end
+                    for (integer i = 0; i < `RS_DEPTH; i = i + 1) begin
+                        instr_ready_table[i] = sorted_instr_ready_table[i];
+                    end
+                    max_birthday <= valid_count - 1;
+                end 
+                else begin
+                    max_birthday <= max_birthday + 1;
+                end
             end
         end
 
@@ -95,7 +109,7 @@ module ReservationStation (
             end
         end
         // Update ready instruction with the oldest birthday
-        oldest_birthday = `RS_DEPTH;
+        oldest_birthday = `MAX_BIRTHDAY;
         found_ready_instr = 0;
         ready_inst_entry = '0;
         for (integer i = 0; i < `RS_DEPTH; i = i + 1) begin
@@ -105,7 +119,7 @@ module ReservationStation (
             end
         end
         if (found_ready_instr) begin
-            ready_inst_entry = instr_ready_table[oldest_birthday];
+            ready_inst_entry <= instr_ready_table[oldest_birthday];
             instr_ready_table[oldest_birthday].valid <= 0;
         end
     end

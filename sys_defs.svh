@@ -25,8 +25,9 @@
 //you can change the clock period to whatever, 10 is just fine
 `define VERILOG_CLOCK_PERIOD   10.0
 `define XLEN 32
-`define BIRTHDAY_SIZE 16
+`define BIRTHDAY_SIZE 3
 `define RS_DEPTH 4
+`define MAX_BIRTHDAY ((1 << `BIRTHDAY_SIZE) - 1)
 
 typedef union packed {
     logic [7:0][7:0] byte_level;
