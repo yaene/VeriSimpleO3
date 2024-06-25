@@ -1,28 +1,6 @@
 # Specification
 
-## Module: (ex Reorder Buffer)
-
-### Inputs
-
-ex.
-
-- clock
-- reset
-- cdb
-- ...
-
-### Outputs
-
-ex.
-
-- rob_full: simple explanation  
-   `simple usage`
-- insn_commit: ...  
-   `...`
-- ...
-
-## Reorder Buffer (ROB)
-
+## Module: Reorder Buffer (ROB)
 ### Interface
 
 ```verilog

@@ -1,6 +1,6 @@
 # Specification
 
-## Module: maptable
+## Module: Maptable
 ### Inputs
 - logic clock,
 - logic reset,
