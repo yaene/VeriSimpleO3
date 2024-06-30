@@ -16,6 +16,9 @@ module rob_testbench();
     logic [`ROB_TAG_LEN-1:0] read_rob_tag; // rob entry to read value from
     logic [`XLEN-1:0] load_address;        // to check for any pending stores
     logic [`ROB_TAG_LEN-1:0] load_rob_tag; // rob entry of load to check for pending stores
+    logic [4:0] wr_dest_reg;                       
+    logic [`ROB_TAG_LEN-1:0] wr_rob_tag;                        
+    logic wr_valid;                          
     
     logic full;                           // is ROB full?
     logic [`ROB_TAG_LEN-1:0] alloc_slot;  // rob tag of new instruction
@@ -41,6 +44,9 @@ module rob_testbench();
     .read_rob_tag (read_rob_tag),
     .load_address (load_address),
     .load_rob_tag (load_rob_tag),
+    .wr_dest_reg (wr_dest_reg),                       
+    .wr_rob_tag (wr_rob_tag),                       
+    .wr_valid ( wr_valid),                          
     .full (full),
     .alloc_slot (alloc_slot),
     .read_value (read_value),
@@ -79,7 +85,7 @@ module rob_testbench();
         entry = alloc_slot;
 
         @(negedge clock)
-        CHECK_VAL("next slot", alloc_slot, 1);
+        CHECK_VAL("next slot", alloc_slot, 2);
         CHECK_VAL("allocated wrmem", head_entry.wr_mem, `FALSE);
         CHECK_VAL("allocated dest", head_entry.dest_reg, 3);
         CHECK_VAL("allocated ready", head_ready, `FALSE);
@@ -87,21 +93,24 @@ module rob_testbench();
         alloc_enable = 0;
 
         @(negedge clock)
-        CHECK_VAL("next slot", alloc_slot, 1);
+        CHECK_VAL("next slot", alloc_slot, 2);
         CHECK_VAL("head ready", head_ready, `TRUE);
         CHECK_VAL("head value", head_entry.value, 5);
+        CHECK_VAL("wr dest reg", wr_dest_reg, 3);
+        CHECK_VAL("wr valid", wr_valid, 1);
+        CHECK_VAL("wr rob tag", wr_rob_tag, entry);
         alloc_enable = 1;
         dest_reg = 1;
 
         @(negedge clock)
-        CHECK_VAL("next slot", alloc_slot, 2);
+        CHECK_VAL("next slot", alloc_slot, 3);
         CHECK_VAL("head ready", head_ready, 0);
         CHECK_VAL("head dest", head_entry.dest_reg, 1);
         entry = alloc_slot;
         dest_reg = 2;
 
         @(negedge clock)
-        CHECK_VAL("next slot", alloc_slot, 3);
+        CHECK_VAL("next slot", alloc_slot, 4);
         cdb_data = '{`TRUE, entry, 11};
         alloc_enable = 0;
         read_rob_tag = entry;
@@ -109,10 +118,10 @@ module rob_testbench();
         @(negedge clock)
         CHECK_VAL("head ready", head_ready, 0);
         CHECK_VAL("prev value", read_value, 11);
-        cdb_data = '{`TRUE, 1, 5};
+        cdb_data = '{`TRUE, 2, 5};
 
         @(negedge clock)
-        cdb_data = '{`FALSE, 1, 0};
+        cdb_data = '{`FALSE, 2, 0};
         CHECK_VAL("head ready", head_ready, 1);
         CHECK_VAL("head value", head_entry.value, 5);
 
@@ -120,6 +129,7 @@ module rob_testbench();
         CHECK_VAL("head ready", head_ready, 1);
         CHECK_VAL("head value", head_entry.value, 11);
         CHECK_VAL("head valid", head_entry.valid, 1);
+        CHECK_VAL("wr valid", wr_valid, 0);
 
         @(negedge clock)
         CHECK_VAL("head ready", head_ready, 0);
@@ -246,12 +256,12 @@ module rob_testbench();
         CHECK_VAL("2. Pending Stores?", pending_stores, `FALSE);
         alloc_enable = 1;
         alloc_wr_mem = 1;
-        alloc_store_dep = 0;
+        alloc_store_dep = 1;
 
         @(negedge clock)
         CHECK_VAL("3. head ready", head_ready, `FALSE);
         CHECK_VAL("3. Pending Stores?", pending_stores, `FALSE);
-        cdb_data = '{`TRUE, 1, 5};
+        cdb_data = '{`TRUE, 2, 5};
         alloc_enable = 0;
 
         @(negedge clock)
@@ -265,7 +275,7 @@ module rob_testbench();
         @(negedge clock)
         CHECK_VAL("5. head ready", head_ready, `FALSE);
         CHECK_VAL("5. Pending Stores?", pending_stores, `FALSE);
-        cdb_data = '{`TRUE, 2, 5};
+        cdb_data = '{`TRUE, 3, 5};
         alloc_enable = 0;
         alloc_wr_mem = 0;
 
@@ -280,17 +290,17 @@ module rob_testbench();
         CHECK_VAL("7. Pending Stores?", pending_stores, `FALSE);
         alloc_enable = 0;
         load_address = 5;
-        load_rob_tag = 3;
+        load_rob_tag = 4;
 
         @(negedge clock)
         CHECK_VAL("8. head ready", head_ready, `FALSE);
         CHECK_VAL("8. Pending Stores?", pending_stores, `TRUE);
-        cdb_data = '{`TRUE, 0, 4};
+        cdb_data = '{`TRUE, 1, 4};
 
         @(negedge clock)
         CHECK_VAL("9. head ready", head_ready, `TRUE);
         CHECK_VAL("9. Pending Stores?", pending_stores, `TRUE);
-        cdb_data = '{`TRUE, 3, 4};
+        cdb_data = '{`TRUE, 4, 4};
 
         @(negedge clock)
         CHECK_VAL("10. head ready", head_ready, `TRUE);
@@ -323,14 +333,14 @@ module rob_testbench();
         alloc_wr_mem = 1;
         alloc_value_in = 5;
         alloc_value_in_valid = 1;
-        cdb_data = '{`TRUE, 0, 4};
+        cdb_data = '{`TRUE, 1, 4};
 
         @(negedge clock)
         CHECK_VAL("14. head ready", head_ready, `TRUE);
         CHECK_VAL("14. Pending Stores?", pending_stores, `FALSE);
         alloc_enable = 0;
         alloc_wr_mem = 0;
-        cdb_data = '{`TRUE, 1, 4};
+        cdb_data = '{`TRUE, 2, 4};
 
         @(negedge clock)
         CHECK_VAL("15. head ready", head_ready, `TRUE);
@@ -347,17 +357,17 @@ module rob_testbench();
         CHECK_VAL("17. head ready", head_ready, `FALSE);
         CHECK_VAL("17. Pending Stores?", pending_stores, `FALSE);
         load_address = 4;
-        load_rob_tag = 0;
+        load_rob_tag = 1;
 
         @(negedge clock)
         CHECK_VAL("18. head ready", head_ready, `FALSE);
         CHECK_VAL("18. Pending Stores?", pending_stores, `FALSE);
-        cdb_data = '{`TRUE, 2, 4};
+        cdb_data = '{`TRUE, 3, 4};
 
         @(negedge clock)
         CHECK_VAL("19. head ready", head_ready, `TRUE);
         CHECK_VAL("19. Pending Stores?", pending_stores, `TRUE);
-        cdb_data = '{`TRUE, 3, 4};
+        cdb_data = '{`TRUE, 4, 4};
 
         @(negedge clock)
         CHECK_VAL("20. head ready", head_ready, `TRUE);
@@ -366,7 +376,7 @@ module rob_testbench();
         @(negedge clock)
         CHECK_VAL("21. head ready", head_ready, `TRUE);
         CHECK_VAL("21. Pending Stores?", pending_stores, `FALSE);
-        cdb_data = '{`TRUE, 0, 4};
+        cdb_data = '{`TRUE, 1, 4};
 
         @(negedge clock)
         CHECK_VAL("22. head ready", head_ready, `FALSE);

@@ -1,28 +1,6 @@
 # Specification
 
-## Module: (ex Reorder Buffer)
-
-### Inputs
-
-ex.
-
-- clock
-- reset
-- cdb
-- ...
-
-### Outputs
-
-ex.
-
-- rob_full: simple explanation  
-   `simple usage`
-- insn_commit: ...  
-   `...`
-- ...
-
-## Reorder Buffer (ROB)
-
+## Module: Reorder Buffer (ROB)
 ### Interface
 
 ```verilog
@@ -44,6 +22,9 @@ output full,                              // is ROB full?
 output [`ROB_TAG_LEN-1:0] alloc_slot,     // rob tag of new instruction
 output [`XLEN-1:0] read_value,            // ROB[read_rob_tag].value
 output pending_stores,                    // whether there are any pending stores before load
+output [4:0] wr_dest_reg,                       // the destination register of the instruction writing back (for map table update)
+output [`ROB_TAG_LEN-1:0] wr_rob_tag,                        // the tag of the instruction writing back (for map table update)
+output wr_valid,                          // whether there is an instruction writing back
 output ROB_ENTRY head_entry,              // the entry of the next instn to commit
 output head_ready);                       // whether instruction at head is ready to commit
 ```
@@ -76,10 +57,10 @@ output head_ready);                       // whether instruction at head is read
 #### Load Buffer
 
 - checking whether there are pending store instructions ahead of the load instruction waiting in load buffer
-  1. check whether there is a vaild instruction with a given *load_rob_tag*
+  1. check whether there is a vaild instruction with a given _load_rob_tag_
   2. ignore if the load instruction is the head
-  3. check whether there are store instructions with same address ahead of the load instruction and set *pending_stores* TRUE.
-  4. Otherwise, *pending_stores* is FALSE (also by default)
+  3. check whether there are store instructions with same address ahead of the load instruction and set _pending_stores_ TRUE.
+  4. Otherwise, _pending_stores_ is FALSE (also by default)
 
 ### Implementation Details
 

@@ -22,6 +22,9 @@ module rob (input clock,
             output [`ROB_TAG_LEN-1:0] alloc_slot,     // rob tag of new instruction
             output [`XLEN-1:0] read_value,            // ROB[read_rob_tag].value
             output logic pending_stores,                    // whether there are any pending stores before load
+            output [4:0] wr_dest_reg,                       // the destination register of the instruction writing back (for map table update)
+            output [`ROB_TAG_LEN-1:0] wr_rob_tag,                        // the tag of the instruction writing back (for map table update)
+            output wr_valid,                          // whether there is an instruction writing back
             output ROB_ENTRY head_entry,              // the entry of the next instn to commit
             output head_ready
             `ifdef DEBUG
@@ -40,15 +43,15 @@ module rob (input clock,
     logic alloc_value_ready;
     logic [`ROB_TAG_LEN-1:0] tag_tracking; // to track tags
     
-    ROB_ENTRY [ROB_SIZE-1:0] rob; // ROB entries
+    ROB_ENTRY [ROB_SIZE:1] rob; // ROB entries
     
     
     always_ff @(posedge clock) begin
         if (reset) begin
-            head = 0;
-            tail = 0;
-            tag_tracking = 0;
-            for (int i = 0; i < ROB_SIZE; i++) begin
+            head = 1;
+            tail = 1;
+            tag_tracking = 1;
+            for (int i = 1; i <= ROB_SIZE; i++) begin
                 rob[i] <= `EMPTY_ROB_ENTRY;
             end
         end
@@ -61,7 +64,7 @@ module rob (input clock,
                 end
                 else begin
                     // pass CDB data to corresponding ROB and any dep. stores
-                    for (int i = 0; i < ROB_SIZE; ++i) begin
+                    for (int i = 1; i <= ROB_SIZE; ++i) begin
                         if (i == cdb_data.rob_tag ||
                         (rob[i].wr_mem && rob[i].store_dep == cdb_data.rob_tag &&
                         !rob[i].value_ready)) begin
@@ -95,8 +98,8 @@ module rob (input clock,
     always_comb begin
         next_head = head;
         if (head_ready) begin
-            if (head + 1 == ROB_SIZE)
-                next_head = 0;
+            if (head == ROB_SIZE)
+                next_head = 1;
             else
                 next_head = head + 1;
         end
@@ -106,8 +109,8 @@ module rob (input clock,
     always_comb begin
         next_tail = tail;
         if (alloc_enable && !full) begin
-            if (tail + 1 == ROB_SIZE)
-                next_tail = 0;
+            if (tail == ROB_SIZE)
+                next_tail = 1;
             else
                 next_tail = tail + 1;
         end
@@ -128,13 +131,13 @@ module rob (input clock,
     // checking whether pending stores exist for the load instruction
     always_comb begin
         if (rob[load_rob_tag].valid && (load_rob_tag != head)) begin
-            tag_tracking = (load_rob_tag == 0) ? ROB_SIZE - 1 : load_rob_tag - 1;
-            for (int i = 0; i < ROB_SIZE - 1; i++) begin
+            tag_tracking = (load_rob_tag == 1) ? ROB_SIZE  : load_rob_tag - 1;
+            for (int i = 1; i < ROB_SIZE; i++) begin
                 if (rob[tag_tracking].wr_mem && rob[tag_tracking].address_ready && (rob[tag_tracking].dest_addr == load_address)) begin
                     pending_stores = `TRUE;
                 end
                 if (tag_tracking != head) begin
-                    tag_tracking = (tag_tracking == 0) ? ROB_SIZE - 1 : tag_tracking - 1;
+                    tag_tracking = (tag_tracking == 1) ? ROB_SIZE : tag_tracking - 1;
                 end
             end
         end
@@ -144,10 +147,10 @@ module rob (input clock,
     end
 
     `ifdef DEBUG
-    assign rob0 = rob[0];
-    assign rob1 = rob[1];
-    assign rob2 = rob[2];
-    assign rob3 = rob[3];
+    assign rob0 = rob[1];
+    assign rob1 = rob[2];
+    assign rob2 = rob[3];
+    assign rob3 = rob[4];
     `endif
     
     // address ready by default on non-stores
@@ -159,6 +162,11 @@ module rob (input clock,
     // we allow for overwriting of just commited head by new entry
     assign clear_head    = head_ready && !(alloc_enable && tail == head);
     assign allocate_tail = alloc_enable && !full;
+
+    // find dest reg for cdb data and repackage signals for map table
+    assign wr_dest_reg = rob[cdb_data.rob_tag].dest_reg;
+    assign wr_rob_tag = cdb_data.rob_tag;
+    assign wr_valid = cdb_data.valid;
 endmodule
     
 `endif
