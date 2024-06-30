@@ -111,13 +111,6 @@ typedef enum logic [3:0] {
 	OPB_IS_J_IMM  = 4'h5
 } ALU_OPB_SELECT;
 
-// forwarding mux selects
-typedef enum logic [1:0] {
-  FORWARD_EX_MEM,
-  FORWARD_MEM_WB,
-  NO_FORWARD
-} FORWARD_SELECT;
-
 //
 // Destination register select
 //
@@ -270,6 +263,29 @@ typedef union packed {
 // an instruction that does nothing instead of Zero which is really an ADDI x0, x0, 0
 //
 `define NOP 32'h00000013
+
+// ROB
+// assuming 4 bits will be enough (max 16 ROB entries)
+`define ROB_TAG_LEN 4
+
+typedef struct packed {
+	logic valid; // needed to distinguish empty entries
+	logic wr_mem; // is a store
+	logic [4:0] dest_reg; // destination register
+	logic [`XLEN-1:0] dest_addr; // destination address (store)
+	logic [`XLEN-1:0] value; // instruction result
+	logic [`ROB_TAG_LEN-1:0] store_dep;
+	logic value_ready;
+	logic address_ready;
+} ROB_ENTRY;
+
+// Common Data Bus
+typedef struct packed {
+	logic valid;
+    logic [`ROB_TAG_LEN-1:0] rob_tag; // identifies instruction that produced value
+    logic [`XLEN-1:0] value;
+} CDB_DATA;
+
 
 //////////////////////////////////////////////
 //
