@@ -34,6 +34,7 @@ module load_buffer (
         end
 
         if (pending_stores) begin
+            lb_packet.valid <= `FALSE;
             read_mem <= `FALSE;
         end
         else begin
