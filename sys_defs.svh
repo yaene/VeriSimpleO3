@@ -363,4 +363,12 @@ typedef struct packed {
 	logic [`BIRTHDAY_SIZE-1:0]birthday;
 	INST instr;
 } INSTR_READY_ENTRY;
+
+typedef struct packed {
+	logic valid;
+	logic [`XLEN-1:0] address;
+	logic [`ROB_TAG_LEN-1:0] reg_tag; // destination reg for load, value reg for store
+	logic [4:0] reg_value;
+} LB_PACKET;
+
 `endif // __SYS_DEFS_VH__
