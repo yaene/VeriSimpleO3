@@ -367,8 +367,8 @@ typedef struct packed {
 typedef struct packed {
 	logic valid;
 	logic [`XLEN-1:0] address;
-	logic [`ROB_TAG_LEN-1:0] reg_tag; // destination reg for load, value reg for store
-	logic [4:0] reg_value;
+	logic [`ROB_TAG_LEN-1:0] rd_tag; // destination reg for load, value reg for store
+	// logic [4:0] reg_value;
 } LB_PACKET;
 
 `endif // __SYS_DEFS_VH__
