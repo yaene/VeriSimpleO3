@@ -19,8 +19,16 @@
 module mem_stage(
 	input         clock,              // system clock
 	input         reset,              // system reset
-	input  EX_MEM_PACKET ex_mem_packet_in,      // write memory? (from decoder)
+	// input  EX_MEM_PACKET ex_mem_packet_in,      // write memory? (from decoder)
 	input  [`XLEN-1:0] Dmem2proc_data,
+
+
+	input LB_PACKET lb_packet_out,			// from load buffer
+	input COMMIT_PACKET  cmt_packet_out,	// from commit stage
+	input logic  read_mem,
+	
+	
+	output mem_busy,					//to load buffer
 	
 	output logic [`XLEN-1:0] mem_result_out,      // outgoing instruction result (to MEM/WB)
 	output logic [1:0] proc2Dmem_command,
@@ -33,22 +41,23 @@ module mem_stage(
 
 	// Determine the command that must be sent to mem
 	assign proc2Dmem_command =
-	                        (ex_mem_packet_in.wr_mem & ex_mem_packet_in.valid) ? BUS_STORE :
-							(ex_mem_packet_in.rd_mem & ex_mem_packet_in.valid) ? BUS_LOAD :
+	                        (cmt_packet_out.wr_mem & cmt_packet_out.valid) ? BUS_STORE :
+							(lb_packet_out.valid) ? BUS_LOAD :
 	                        BUS_NONE;
 
+	// FIXME:
 	assign proc2Dmem_size = MEM_SIZE'(ex_mem_packet_in.mem_size[1:0]);	//only the 2 LSB to determine the size;
 	
 
 
 	// The memory address is calculated by the ALU
-	assign proc2Dmem_data = ex_mem_packet_in.rs2_value;
+	assign proc2Dmem_data = cmt_packet_out.data_out;
 
-	assign proc2Dmem_addr = ex_mem_packet_in.alu_result;	
+	assign proc2Dmem_addr = cmt_packet_out.mem_address;	
 	// Assign the result-out for next stage
 	always_comb begin
 		mem_result_out = ex_mem_packet_in.alu_result;
-		if (ex_mem_packet_in.rd_mem) begin
+		if (lb_packet_out.valid) begin //read memory, load
 			if (~ex_mem_packet_in.mem_size[2]) begin //is this an signed/unsigned load?
 				if (ex_mem_packet_in.mem_size[1:0] == 2'b0)
 					mem_result_out = {{(`XLEN-8){Dmem2proc_data[7]}}, Dmem2proc_data[7:0]};

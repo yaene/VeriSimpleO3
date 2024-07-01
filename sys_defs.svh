@@ -286,6 +286,21 @@ typedef struct packed {
     logic [`XLEN-1:0] value;
 } CDB_DATA;
 
+typedef struct packed {
+    logic valid;
+    logic [`XLEN-1:0] address;
+    logic [`ROB_TAG_LEN-1:0] rd_tag;
+} LB_PACKET;
+
+typedef struct packed {
+	logic valid;
+	logic wr_mem;
+	logic [`XLEN-1:0] mem_address;
+	logic [4:0] reg_wr_idx_out;        // register writeback index
+	logic [`XLEN-1:0] data_out;      // writeback data
+	logic       reg_wr_en_out;          // register writeback enable
+}COMMIT_PACKET;
+
 // Map table
 
 typedef struct packed {
@@ -363,4 +378,6 @@ typedef struct packed {
 	logic [`BIRTHDAY_SIZE-1:0]birthday;
 	INST instr;
 } INSTR_READY_ENTRY;
+
+
 `endif // __SYS_DEFS_VH__
