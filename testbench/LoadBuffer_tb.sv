@@ -55,7 +55,6 @@ module load_buffer_testbench();
 
         @(negedge clock)
         reset = 1'b0;
-        // lb_packet_in = '{1'b0, 32'b0, 5'b0};
         alloc_enable = 0;
         pending_stores = 1'b0;
         mem_busy = 1'b0;
