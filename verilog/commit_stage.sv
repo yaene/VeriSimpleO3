@@ -17,6 +17,7 @@ module commit_stage(
 
   assign cmt_packet_out.valid = head_entry.valid;
   assign cmt_packet_out.data_out = head_entry.value;
+  assign cmt_packet_out.mem_size = head_entry.mem_size;
 
   // for memory stage
   assign cmt_packet_out.wr_mem = (head_ready && head_entry.valid && head_ready);
