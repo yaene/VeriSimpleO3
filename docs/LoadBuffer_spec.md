@@ -31,6 +31,7 @@ module load_buffer (
             logic valid;
             logic [`XLEN-1:0] address;
             logic [`ROB_TAG_LEN-1:0] rd_tag;
+            logic [2:0] mem_size; // id_ex_packet_in.inst.r.funct3
         } LB_PACKET;
         ```
 #### Reorder Buffer
