@@ -62,25 +62,28 @@ module load_buffer_testbench();
         @(negedge clock)
         CHECK_VAL("#0 lb_packet_out.address", lb_packet_out.address, 0);
         CHECK_VAL("#0 lb_packet_out.rd_tag", lb_packet_out.rd_tag, 0);
+        CHECK_VAL("#0 lb_packet_out.mem_size", lb_packet_out.mem_size, 0);
         CHECK_VAL("#0 full", full, 0);
         CHECK_VAL("#0 load_address", load_address, 0);
         CHECK_VAL("#0 load_rob_tag", load_rob_tag, 0);
         CHECK_VAL("#0 read_mem", read_mem, 0);
         alloc_enable = 1;
-        lb_packet_in = '{`FALSE, 5, 1};
+        lb_packet_in = '{`FALSE, 5, 1, 1};
 
         @(negedge clock)
         CHECK_VAL("#1 lb_packet_out.address", lb_packet_out.address, 0);
         CHECK_VAL("#1 lb_packet_out.rd_tag", lb_packet_out.rd_tag, 0);
+        CHECK_VAL("#1 lb_packet_out.mem_size", lb_packet_out.mem_size, 0);
         CHECK_VAL("#1 full", full, 0);
         CHECK_VAL("#1 load_address", load_address, 0);
         CHECK_VAL("#1 load_rob_tag", load_rob_tag, 0);
         CHECK_VAL("#1 read_mem", read_mem, 0);
-        lb_packet_in = '{`TRUE, 5, 1};
+        lb_packet_in = '{`TRUE, 5, 1, 1};
 
         @(negedge clock)
         CHECK_VAL("#2 lb_packet_out.address", lb_packet_out.address, 5);
         CHECK_VAL("#2 lb_packet_out.rd_tag", lb_packet_out.rd_tag, 1);
+        CHECK_VAL("#2 lb_packet_out.mem_size", lb_packet_out.mem_size, 1);
         CHECK_VAL("#2 full", full, 1);
         CHECK_VAL("#2 load_address", load_address, 5);
         CHECK_VAL("#2 load_rob_tag", load_rob_tag, 1);
@@ -91,35 +94,39 @@ module load_buffer_testbench();
         @(negedge clock)
         CHECK_VAL("#3 lb_packet_out.address", lb_packet_out.address, 5);
         CHECK_VAL("#3 lb_packet_out.rd_tag", lb_packet_out.rd_tag, 1);
+        CHECK_VAL("#3 lb_packet_out.mem_size", lb_packet_out.mem_size, 1);
         CHECK_VAL("#3 full", full, 1);
         CHECK_VAL("#3 load_address", load_address, 5);
         CHECK_VAL("#3 load_rob_tag", load_rob_tag, 1);
         CHECK_VAL("#3 read_mem", read_mem, 0);
         alloc_enable = 1;
-        lb_packet_in = '{`TRUE, 4, 2};
+        lb_packet_in = '{`TRUE, 4, 2, 2};
 
         @(negedge clock)
         CHECK_VAL("#4 lb_packet_out.address", lb_packet_out.address, 5);
         CHECK_VAL("#4 lb_packet_out.rd_tag", lb_packet_out.rd_tag, 1);
+        CHECK_VAL("#4 lb_packet_out.mem_size", lb_packet_out.mem_size, 1);
         CHECK_VAL("#4 full", full, 1);
         CHECK_VAL("#4 load_address", load_address, 5);
         CHECK_VAL("#4 load_rob_tag", load_rob_tag, 1);
         CHECK_VAL("#4 read_mem", read_mem, 0);
         pending_stores = 0;
-        lb_packet_in = '{`FALSE, 3, 3};
+        lb_packet_in = '{`FALSE, 3, 3, 1};
 
         @(negedge clock)
         CHECK_VAL("#5 lb_packet_out.address", lb_packet_out.address, 5);
         CHECK_VAL("#5 lb_packet_out.rd_tag", lb_packet_out.rd_tag, 1);
+        CHECK_VAL("#5 lb_packet_out.mem_size", lb_packet_out.mem_size, 1);
         CHECK_VAL("#5 full", full, 0);
         CHECK_VAL("#5 load_address", load_address, 5);
         CHECK_VAL("#5 load_rob_tag", load_rob_tag, 1);
         CHECK_VAL("#5 read_mem", read_mem, 1);
-        lb_packet_in = '{`TRUE, 2, 2};
+        lb_packet_in = '{`TRUE, 2, 2, 0};
 
         @(negedge clock)
         CHECK_VAL("#6 lb_packet_out.address", lb_packet_out.address, 2);
         CHECK_VAL("#6 lb_packet_out.rd_tag", lb_packet_out.rd_tag, 2);
+        CHECK_VAL("#6 lb_packet_out.mem_size", lb_packet_out.mem_size, 0);
         CHECK_VAL("#6 full", full, 1);
         CHECK_VAL("#6 load_address", load_address, 2);
         CHECK_VAL("#6 load_rob_tag", load_rob_tag, 2);
@@ -129,17 +136,19 @@ module load_buffer_testbench();
         @(negedge clock)
         CHECK_VAL("#7 lb_packet_out.address", lb_packet_out.address, 2);
         CHECK_VAL("#7 lb_packet_out.rd_tag", lb_packet_out.rd_tag, 2);
+        CHECK_VAL("#7 lb_packet_out.mem_size", lb_packet_out.mem_size, 0);
         CHECK_VAL("#7 full", full, 0);
         CHECK_VAL("#7 load_address", load_address, 2);
         CHECK_VAL("#7 load_rob_tag", load_rob_tag, 2);
         CHECK_VAL("#7 read_mem", read_mem, 1);
         alloc_enable = 1;
-        lb_packet_in = '{`TRUE, 4, 3};
+        lb_packet_in = '{`TRUE, 4, 3, 2};
         mem_busy = 1;
 
         @(negedge clock)
         CHECK_VAL("#8 lb_packet_out.address", lb_packet_out.address, 4);
         CHECK_VAL("#8 lb_packet_out.rd_tag", lb_packet_out.rd_tag, 3);
+        CHECK_VAL("#8 lb_packet_out.mem_size", lb_packet_out.mem_size, 2);
         CHECK_VAL("#8 full", full, 1);
         CHECK_VAL("#8 load_address", load_address, 4);
         CHECK_VAL("#8 load_rob_tag", load_rob_tag, 3);
@@ -149,6 +158,7 @@ module load_buffer_testbench();
         @(negedge clock)
         CHECK_VAL("#9 lb_packet_out.address", lb_packet_out.address, 4);
         CHECK_VAL("#9 lb_packet_out.rd_tag", lb_packet_out.rd_tag, 3);
+        CHECK_VAL("#9 lb_packet_out.mem_size", lb_packet_out.mem_size, 2);
         CHECK_VAL("#9 full", full, 1);
         CHECK_VAL("#9 load_address", load_address, 4);
         CHECK_VAL("#9 load_rob_tag", load_rob_tag, 3);
@@ -158,17 +168,19 @@ module load_buffer_testbench();
         @(negedge clock)
         CHECK_VAL("#10 lb_packet_out.address", lb_packet_out.address, 4);
         CHECK_VAL("#10 lb_packet_out.rd_tag", lb_packet_out.rd_tag, 3);
+        CHECK_VAL("#10 lb_packet_out.mem_size", lb_packet_out.mem_size, 2);
         CHECK_VAL("#10 full", full, 0);
         CHECK_VAL("#10 load_address", load_address, 4);
         CHECK_VAL("#10 load_rob_tag", load_rob_tag, 3);
         CHECK_VAL("#10 read_mem", read_mem, 1);
         alloc_enable = 1;
-        lb_packet_in = '{`TRUE, 3, 1};
+        lb_packet_in = '{`TRUE, 3, 1, 1};
         mem_busy = 1;
 
         @(negedge clock)
         CHECK_VAL("#11 lb_packet_out.address", lb_packet_out.address, 3);
         CHECK_VAL("#11 lb_packet_out.rd_tag", lb_packet_out.rd_tag, 1);
+        CHECK_VAL("#11 lb_packet_out.mem_size", lb_packet_out.mem_size, 1);
         CHECK_VAL("#11 full", full, 1);
         CHECK_VAL("#11 load_address", load_address, 3);
         CHECK_VAL("#11 load_rob_tag", load_rob_tag, 1);
@@ -179,6 +191,7 @@ module load_buffer_testbench();
         @(negedge clock)
         CHECK_VAL("#12 lb_packet_out.address", lb_packet_out.address, 3);
         CHECK_VAL("#12 lb_packet_out.rd_tag", lb_packet_out.rd_tag, 1);
+        CHECK_VAL("#12 lb_packet_out.mem_size", lb_packet_out.mem_size, 1);
         CHECK_VAL("#12 full", full, 1);
         CHECK_VAL("#12 load_address", load_address, 3);
         CHECK_VAL("#12 load_rob_tag", load_rob_tag, 1);
@@ -187,6 +200,7 @@ module load_buffer_testbench();
         @(negedge clock)
         CHECK_VAL("#13 lb_packet_out.address", lb_packet_out.address, 3);
         CHECK_VAL("#13 lb_packet_out.rd_tag", lb_packet_out.rd_tag, 1);
+        CHECK_VAL("#13 lb_packet_out.mem_size", lb_packet_out.mem_size, 1);
         CHECK_VAL("#13 full", full, 1);
         CHECK_VAL("#13 load_address", load_address, 3);
         CHECK_VAL("#13 load_rob_tag", load_rob_tag, 1);
@@ -196,6 +210,7 @@ module load_buffer_testbench();
         @(negedge clock)
         CHECK_VAL("#14 lb_packet_out.address", lb_packet_out.address, 3);
         CHECK_VAL("#14 lb_packet_out.rd_tag", lb_packet_out.rd_tag, 1);
+        CHECK_VAL("#14 lb_packet_out.mem_size", lb_packet_out.mem_size, 1);
         CHECK_VAL("#14 full", full, 1);
         CHECK_VAL("#14 load_address", load_address, 3);
         CHECK_VAL("#14 load_rob_tag", load_rob_tag, 1);
@@ -204,6 +219,7 @@ module load_buffer_testbench();
         @(negedge clock)
         CHECK_VAL("#15 lb_packet_out.address", lb_packet_out.address, 3);
         CHECK_VAL("#15 lb_packet_out.rd_tag", lb_packet_out.rd_tag, 1);
+        CHECK_VAL("#15 lb_packet_out.mem_size", lb_packet_out.mem_size, 1);
         CHECK_VAL("#15 full", full, 1);
         CHECK_VAL("#15 load_address", load_address, 3);
         CHECK_VAL("#15 load_rob_tag", load_rob_tag, 1);
@@ -213,6 +229,7 @@ module load_buffer_testbench();
         @(negedge clock)
         CHECK_VAL("#16 lb_packet_out.address", lb_packet_out.address, 3);
         CHECK_VAL("#16 lb_packet_out.rd_tag", lb_packet_out.rd_tag, 1);
+        CHECK_VAL("#16 lb_packet_out.mem_size", lb_packet_out.mem_size, 1);
         CHECK_VAL("#16 full", full, 0);
         CHECK_VAL("#16 load_address", load_address, 3);
         CHECK_VAL("#16 load_rob_tag", load_rob_tag, 1);
@@ -221,6 +238,7 @@ module load_buffer_testbench();
         @(negedge clock)
         CHECK_VAL("#17 lb_packet_out.address", lb_packet_out.address, 3);
         CHECK_VAL("#17 lb_packet_out.rd_tag", lb_packet_out.rd_tag, 1);
+        CHECK_VAL("#17 lb_packet_out.mem_size", lb_packet_out.mem_size, 1);
         CHECK_VAL("#17 full", full, 0);
         CHECK_VAL("#17 load_address", load_address, 3);
         CHECK_VAL("#17 load_rob_tag", load_rob_tag, 1);
@@ -229,6 +247,7 @@ module load_buffer_testbench();
         @(negedge clock)
         CHECK_VAL("#18 lb_packet_out.address", lb_packet_out.address, 3);
         CHECK_VAL("#18 lb_packet_out.rd_tag", lb_packet_out.rd_tag, 1);
+        CHECK_VAL("#18 lb_packet_out.mem_size", lb_packet_out.mem_size, 1);
         CHECK_VAL("#18 full", full, 0);
         CHECK_VAL("#18 load_address", load_address, 3);
         CHECK_VAL("#18 load_rob_tag", load_rob_tag, 1);

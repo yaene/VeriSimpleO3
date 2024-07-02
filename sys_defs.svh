@@ -353,6 +353,7 @@ typedef struct packed {
 	logic valid;
 	logic [`XLEN-1:0] address;
 	logic [`ROB_TAG_LEN-1:0] rd_tag;
+	logic [2:0] mem_size;
 } LB_PACKET;
 
 `endif // __SYS_DEFS_VH__
