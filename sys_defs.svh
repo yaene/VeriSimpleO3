@@ -361,6 +361,6 @@ typedef struct packed {
     logic [4:0] rs1_value;
     logic [4:0] rs2_value;
 	logic [`BIRTHDAY_SIZE-1:0]birthday;
-	INST instr;
+	ID_EX_PACKET instr;
 } INSTR_READY_ENTRY;
 `endif // __SYS_DEFS_VH__
