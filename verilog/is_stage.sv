@@ -208,7 +208,7 @@ module decoder(
 	end // always
 endmodule // decoder
 
-module is_stage(         
+module is_stage #(parameter FU_NUM=3) (         
 	input clock,              // system clock
 	input reset,              // system reset
 	input wb_reg_wr_en_out,    // Reg write enable from WB Stage
@@ -222,10 +222,12 @@ module is_stage(
 	input [`XLEN-1:0] rs1_read_rob_value,
 	input [`XLEN-1:0] rs2_read_rob_value, 
 
-    input rs_full, //input from rs
+    input [FU_NUM-1:0] rs_full, //input from rs
     input stall_in,
 	
 	output ID_EX_PACKET id_packet_out, // rob.dest_reg, rs, rs.enable, maptable.inst
+	output [FU_NUM-1:0] fu_option, // System allocate the packet to each RS according to the FU type
+
     // output to rob
     output alloc_enable,                       // should a new slot be allocated
     output alloc_wr_mem,                       // is new instruction a store?
@@ -241,10 +243,12 @@ module is_stage(
 
 );
 
+	logic no_rs_available;
+
 	logic [`XLEN-1:0] regf_rs1_value;
 	logic [`XLEN-1:0] regf_rs2_value;
 
-    assign stall_out = rs_full | rob_full;
+    assign stall_out = no_rs_available | rob_full;
     assign id_packet_out.inst = if_id_packet_in.inst;
     assign id_packet_out.NPC  = if_id_packet_in.NPC;
     assign id_packet_out.PC   = if_id_packet_in.PC;
@@ -297,6 +301,22 @@ module is_stage(
 			DEST_NONE:  id_packet_out.dest_reg_idx = `ZERO_REG;
 			default:    id_packet_out.dest_reg_idx = `ZERO_REG; 
 		endcase
+	end
+
+	// Determine which RS should be allocated
+	always_comb begin
+		no_rs_available = `FALSE;
+		if (id_packet_out.rd_mem || id_packet_out.wr_mem) begin
+			fu_option = `FU_ACU;
+			// if Load/Store instruction needs to issue
+			// but if the corresponding RS is full -> Stall IF stage
+			if (rs_full[`FU_ACU]) no_rs_available = `TRUE;
+		end
+		else begin
+			fu_option = `FU_ALU;
+			// if the corresponding RS of the instruction is full -> Stall IF stage
+			if (rs_full[`FU_ALU]) no_rs_available = `TRUE;
+		end
 	end
 
 	assign rs1_rob_tag = maptable_packet_rs1.rob_tag_val;
