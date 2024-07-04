@@ -275,6 +275,7 @@ typedef struct packed {
 	logic [`XLEN-1:0] dest_addr; // destination address (store)
 	logic [`XLEN-1:0] value; // instruction result
 	logic [`ROB_TAG_LEN-1:0] store_dep;
+	logic [2:0] mem_size;
 	logic value_ready;
 	logic address_ready;
 } ROB_ENTRY;

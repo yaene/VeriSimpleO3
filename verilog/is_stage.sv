@@ -232,6 +232,7 @@ module is_stage(
     output [`XLEN-1:0] alloc_value_in,         // value to store if available during store issue
     output [`ROB_TAG_LEN-1:0] alloc_store_dep, // else ROB providing value of store
     output alloc_value_in_valid,               // whether store value is available at issue
+	output [2:0] alloc_mem_size,
     
     output [`ROB_TAG_LEN-1:0] rs1_rob_tag,
 	output [`ROB_TAG_LEN-1:0] rs2_rob_tag,
@@ -303,5 +304,7 @@ module is_stage(
 
 	assign id_packet_out.rs1_value = (maptable_packet_rs1.rob_tag_ready) ? rs1_read_rob_value : regf_rs1_value;
 	assign id_packet_out.rs2_value = (maptable_packet_rs2.rob_tag_ready) ? rs2_read_rob_value : regf_rs2_value;
+
+	assign alloc_mem_size = if_id_packet_in.inst.r.funct3;
    
 endmodule // module id_stage

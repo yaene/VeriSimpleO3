@@ -4,7 +4,7 @@
 
 `timescale 1ns/100ps
 
-`define EMPTY_ROB_ENTRY '{`FALSE, `FALSE, `ZERO_REG, `XLEN'b0, `XLEN'b0, `ROB_TAG_LEN'b0, `FALSE, `FALSE}
+`define EMPTY_ROB_ENTRY '{`FALSE, `FALSE, `ZERO_REG, `XLEN'b0, `XLEN'b0, `ROB_TAG_LEN'b0, 3'b0, `FALSE, `FALSE}
 
 module rob (input clock,
             input reset,
@@ -15,6 +15,7 @@ module rob (input clock,
             input [`ROB_TAG_LEN-1:0] alloc_store_dep, // else ROB providing value of store
             input alloc_value_in_valid,               // whether store value is available at issue
             input [4:0] dest_reg,                     // dest register of new instruction
+            input [2:0] alloc_mem_size,
             input [`ROB_TAG_LEN-1:0] read_rob_tag_rs1,    // rob entry to read value from
             input [`ROB_TAG_LEN-1:0] read_rob_tag_rs2, 
 
@@ -84,7 +85,7 @@ module rob (input clock,
         // allocate ROB entry
         if (allocate_tail) begin
             rob[tail] <= '{`TRUE, alloc_wr_mem, dest_reg,
-            `XLEN'b0, alloc_value, alloc_store_dep,
+            `XLEN'b0, alloc_value, alloc_store_dep, alloc_mem_size,
             alloc_value_ready, ~alloc_wr_mem};
         end
         
