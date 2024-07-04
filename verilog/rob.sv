@@ -8,19 +8,25 @@
 
 module rob (input clock,
             input reset,
+
             input alloc_enable,                       // should a new slot be allocated
             input alloc_wr_mem,                       // is new instruction a store?
             input [`XLEN-1:0] alloc_value_in,         // value to store if available during store issue
             input [`ROB_TAG_LEN-1:0] alloc_store_dep, // else ROB providing value of store
             input alloc_value_in_valid,               // whether store value is available at issue
             input [4:0] dest_reg,                     // dest register of new instruction
+            input [`ROB_TAG_LEN-1:0] read_rob_tag_rs1,    // rob entry to read value from
+            input [`ROB_TAG_LEN-1:0] read_rob_tag_rs2, 
+
             input CDB_DATA cdb_data,                  // data on CDB
-            input [`ROB_TAG_LEN-1:0] read_rob_tag,    // rob entry to read value from
+           
             input [`XLEN-1:0] load_address,           // to check for any pending stores
             input [`ROB_TAG_LEN-1:0] load_rob_tag,    // rob entry of load to check for pending stores
+            
             output full,                              // is ROB full?
             output [`ROB_TAG_LEN-1:0] alloc_slot,     // rob tag of new instruction
-            output [`XLEN-1:0] read_value,            // ROB[read_rob_tag].value
+            output [`XLEN-1:0] read_value_rs1,            // ROB[read_rob_tag_rs1].value
+            output [`XLEN-1:0] read_value_rs2,            // ROB[read_rob_tag_rs2].value            
             output logic pending_stores,                    // whether there are any pending stores before load
             output [4:0] wr_dest_reg,                       // the destination register of the instruction writing back (for map table update)
             output [`ROB_TAG_LEN-1:0] wr_rob_tag,                        // the tag of the instruction writing back (for map table update)
@@ -157,7 +163,8 @@ module rob (input clock,
     assign head_ready = rob[head].value_ready && rob[head].address_ready;
     assign full       = rob[head].valid && tail == head && !head_ready;
     assign alloc_slot = tail;
-    assign read_value = rob[read_rob_tag].value;
+    assign read_value_rs1 = rob[read_rob_tag_rs1].value;
+    assign read_value_rs2 = rob[read_rob_tag_rs2].value;
     assign head_entry = rob[head];
     // we allow for overwriting of just commited head by new entry
     assign clear_head    = head_ready && !(alloc_enable && tail == head);

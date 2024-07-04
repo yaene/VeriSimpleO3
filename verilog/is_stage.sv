@@ -209,15 +209,19 @@ module decoder(
 endmodule // decoder
 
 module is_stage(         
-	input         clock,              // system clock
-	input         reset,              // system reset
-	input         wb_reg_wr_en_out,    // Reg write enable from WB Stage
-	input  [4:0] wb_reg_wr_idx_out,  // Reg write index from WB Stage
-	input  [`XLEN-1:0] wb_reg_wr_data_out,  // Reg write data from WB Stage
-	input  IF_ID_PACKET if_id_packet_in,
+	input clock,              // system clock
+	input reset,              // system reset
+	input wb_reg_wr_en_out,    // Reg write enable from WB Stage
+	input [4:0] wb_reg_wr_idx_out,  // Reg write index from WB Stage
+	input [`XLEN-1:0] wb_reg_wr_data_out,  // Reg write data from WB Stage
+	input IF_ID_PACKET if_id_packet_in,
     input MAPTABLE_PACKET maptable_packet_rs1, //input from maptable
     input MAPTABLE_PACKET maptable_packet_rs2, //input from maptable
     input rob_full, //input from rob
+
+	input [`XLEN-1:0] rs1_read_rob_value,
+	input [`XLEN-1:0] rs2_read_rob_value, 
+
     input rs_full, //input from rs
     input stall_in,
 	
@@ -229,9 +233,16 @@ module is_stage(
     output [`ROB_TAG_LEN-1:0] alloc_store_dep, // else ROB providing value of store
     output alloc_value_in_valid,               // whether store value is available at issue
     
-    output stall_out
+    output [`ROB_TAG_LEN-1:0] rs1_rob_tag,
+	output [`ROB_TAG_LEN-1:0] rs2_rob_tag,
+	
+	output stall_out
 
 );
+
+	logic [`XLEN-1:0] regf_rs1_value;
+	logic [`XLEN-1:0] regf_rs2_value;
+
     assign stall_out = rs_full | rob_full;
     assign id_packet_out.inst = if_id_packet_in.inst;
     assign id_packet_out.NPC  = if_id_packet_in.NPC;
@@ -243,16 +254,15 @@ module is_stage(
     assign alloc_value_in_valid = (maptable_packet_rs1.rob_tag_val == 0);
     assign alloc_store_dep = maptable_packet_rs1.rob_tag_val;
 
-
 	DEST_REG_SEL dest_reg_select; 
 
 	// Instantiate the register file used by this pipeline
 	regfile regf_0 (
 		.rda_idx(if_id_packet_in.inst.r.rs1),
-		.rda_out(id_packet_out.rs1_value), 
+		.rda_out(regf_rs1_value), 
 
 		.rdb_idx(if_id_packet_in.inst.r.rs2),
-		.rdb_out(id_packet_out.rs2_value),
+		.rdb_out(regf_rs2_value),
 
 		.wr_clk(clock),
 		.wr_en(wb_reg_wr_en_out),
@@ -287,5 +297,11 @@ module is_stage(
 			default:    id_packet_out.dest_reg_idx = `ZERO_REG; 
 		endcase
 	end
+
+	assign rs1_rob_tag = maptable_packet_rs1.rob_tag_val;
+	assign rs2_rob_tag = maptable_packet_rs2.rob_tag_val;
+
+	assign id_packet_out.rs1_value = (maptable_packet_rs1.rob_tag_ready) ? rs1_read_rob_value : regf_rs1_value;
+	assign id_packet_out.rs2_value = (maptable_packet_rs2.rob_tag_ready) ? rs2_read_rob_value : regf_rs2_value;
    
 endmodule // module id_stage
