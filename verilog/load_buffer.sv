@@ -26,26 +26,23 @@ module load_buffer (
         if (reset) begin
             lb_packet <= `EMPTY_LB_PACKET;
             full <= `FALSE;
-            read_mem <= `FALSE;
         end
         else begin
             if (!full) begin
-                read_mem <= `FALSE; // hold at least one cycle to check pending_stores
                 if (alloc_enable & lb_packet_in.valid) begin
                     lb_packet <= lb_packet_in;
                     full <= `TRUE;
                 end
             end
             else begin
-                if (!pending_stores) begin // if there is no earlier store instructions pending
-                    if (!mem_busy) begin // if mem stage is available
-                        read_mem <= `TRUE; // fetch to mem stage
-                        full <= `FALSE;
-                    end
+                if (read_mem) begin
+                    full <= `FALSE;
                 end
             end
         end
     end
+
+    assign read_mem = !pending_stores && !mem_busy;
 
     assign load_address = lb_packet.address;
     assign load_rob_tag = lb_packet.rd_tag;

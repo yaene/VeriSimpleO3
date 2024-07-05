@@ -66,7 +66,7 @@ module load_buffer_testbench();
         CHECK_VAL("#0 full", full, 0);
         CHECK_VAL("#0 load_address", load_address, 0);
         CHECK_VAL("#0 load_rob_tag", load_rob_tag, 0);
-        CHECK_VAL("#0 read_mem", read_mem, 0);
+        CHECK_VAL("#0 read_mem", read_mem, 1);
         alloc_enable = 1;
         lb_packet_in = '{`FALSE, 5, 1, 1};
 
@@ -77,8 +77,9 @@ module load_buffer_testbench();
         CHECK_VAL("#1 full", full, 0);
         CHECK_VAL("#1 load_address", load_address, 0);
         CHECK_VAL("#1 load_rob_tag", load_rob_tag, 0);
-        CHECK_VAL("#1 read_mem", read_mem, 0);
+        CHECK_VAL("#1 read_mem", read_mem, 1);
         lb_packet_in = '{`TRUE, 5, 1, 1};
+        pending_stores = 1;
 
         @(negedge clock)
         CHECK_VAL("#2 lb_packet_out.address", lb_packet_out.address, 5);
@@ -89,7 +90,6 @@ module load_buffer_testbench();
         CHECK_VAL("#2 load_rob_tag", load_rob_tag, 1);
         CHECK_VAL("#2 read_mem", read_mem, 0);
         alloc_enable = 0;
-        pending_stores = 1;
 
         @(negedge clock)
         CHECK_VAL("#3 lb_packet_out.address", lb_packet_out.address, 5);
@@ -130,7 +130,7 @@ module load_buffer_testbench();
         CHECK_VAL("#6 full", full, 1);
         CHECK_VAL("#6 load_address", load_address, 2);
         CHECK_VAL("#6 load_rob_tag", load_rob_tag, 2);
-        CHECK_VAL("#6 read_mem", read_mem, 0);
+        CHECK_VAL("#6 read_mem", read_mem, 1);
         alloc_enable = 0;
 
         @(negedge clock)
@@ -242,7 +242,7 @@ module load_buffer_testbench();
         CHECK_VAL("#17 full", full, 0);
         CHECK_VAL("#17 load_address", load_address, 3);
         CHECK_VAL("#17 load_rob_tag", load_rob_tag, 1);
-        CHECK_VAL("#17 read_mem", read_mem, 0);
+        CHECK_VAL("#17 read_mem", read_mem, 1);
 
         @(negedge clock)
         CHECK_VAL("#18 lb_packet_out.address", lb_packet_out.address, 3);
@@ -251,7 +251,7 @@ module load_buffer_testbench();
         CHECK_VAL("#18 full", full, 0);
         CHECK_VAL("#18 load_address", load_address, 3);
         CHECK_VAL("#18 load_rob_tag", load_rob_tag, 1);
-        CHECK_VAL("#18 read_mem", read_mem, 0);
+        CHECK_VAL("#18 read_mem", read_mem, 1);
 
         $display("Simulation Success!");
         $finish;
