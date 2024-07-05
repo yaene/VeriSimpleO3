@@ -211,23 +211,27 @@ endmodule // decoder
 module is_stage #(parameter FU_NUM=3) (         
 	input clock,              // system clock
 	input reset,              // system reset
+	// input from Commit stage
 	input wb_reg_wr_en_out,    // Reg write enable from WB Stage
 	input [4:0] wb_reg_wr_idx_out,  // Reg write index from WB Stage
 	input [`XLEN-1:0] wb_reg_wr_data_out,  // Reg write data from WB Stage
+	// input from IF stage
 	input IF_ID_PACKET if_id_packet_in,
-    input MAPTABLE_PACKET maptable_packet_rs1, //input from maptable
-    input MAPTABLE_PACKET maptable_packet_rs2, //input from maptable
-    input rob_full, //input from rob
-
+	// input from Maptable
+    input MAPTABLE_PACKET maptable_packet_rs1,
+    input MAPTABLE_PACKET maptable_packet_rs2,
+	// input from ROB
+    input rob_full,
 	input [`XLEN-1:0] rs1_read_rob_value,
 	input [`XLEN-1:0] rs2_read_rob_value, 
-
-    input [FU_NUM-1:0] rs_full, //input from rs
+	// input from RS
+    input [FU_NUM-1:0] rs_full,
+	// ??
     input stall_in,
 	
-	output ID_EX_PACKET id_packet_out, // rob.dest_reg, rs, rs.enable, maptable.inst
-	output [FU_NUM-1:0] fu_option, // System allocate the packet to each RS according to the FU type
-
+	// output to RS (+ ROB)
+	output ID_EX_PACKET id_packet_out, // rob.dest_reg, rs, maptable.inst
+	output rs_enable, // rs.enable
     // output to rob
     output alloc_enable,                       // should a new slot be allocated
     output alloc_wr_mem,                       // is new instruction a store?
@@ -235,12 +239,10 @@ module is_stage #(parameter FU_NUM=3) (
     output [`ROB_TAG_LEN-1:0] alloc_store_dep, // else ROB providing value of store
     output alloc_value_in_valid,               // whether store value is available at issue
 	output [2:0] alloc_mem_size,
-    
     output [`ROB_TAG_LEN-1:0] rs1_rob_tag,
 	output [`ROB_TAG_LEN-1:0] rs2_rob_tag,
-	
+	// output to IF stage
 	output stall_out
-
 );
 
 	logic no_rs_available;
@@ -307,13 +309,13 @@ module is_stage #(parameter FU_NUM=3) (
 	always_comb begin
 		no_rs_available = `FALSE;
 		if (id_packet_out.rd_mem || id_packet_out.wr_mem) begin
-			fu_option = `FU_ACU;
+			rs_enable = `FU_ACU;
 			// if Load/Store instruction needs to issue
 			// but if the corresponding RS is full -> Stall IF stage
 			if (rs_full[`FU_ACU]) no_rs_available = `TRUE;
 		end
 		else begin
-			fu_option = `FU_ALU;
+			rs_enable = `FU_ALU;
 			// if the corresponding RS of the instruction is full -> Stall IF stage
 			if (rs_full[`FU_ALU]) no_rs_available = `TRUE;
 		end
