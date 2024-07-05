@@ -33,7 +33,7 @@ module mem_stage(
 	
 	output logic [`XLEN-1:0] mem_result_out,      // outgoing instruction result (to MEM/WB)
 	output logic [1:0] proc2Dmem_command,
-	output MEM_SIZE proc2Dmem_size, //FIXME:
+	output MEM_SIZE proc2Dmem_size,
 	output logic [`XLEN-1:0] proc2Dmem_addr,      // Address sent to data-memory
 	output logic [`XLEN-1:0] proc2Dmem_data      // Data sent to data-memory
 );
