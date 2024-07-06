@@ -212,9 +212,9 @@ module is_stage #(parameter FU_NUM=3) (
 	input clock,              // system clock
 	input reset,              // system reset
 	// input from Commit stage
-	input wb_reg_wr_en_out,    // Reg write enable from WB Stage
-	input [4:0] wb_reg_wr_idx_out,  // Reg write index from WB Stage
-	input [`XLEN-1:0] wb_reg_wr_data_out,  // Reg write data from WB Stage
+	input wb_reg_wr_en_out,    // COMMIT_PACKET.reg_wr_en_out
+	input [4:0] wb_reg_wr_idx_out,  // COMMIT_PACKET.reg_wr_idx_out
+	input [`XLEN-1:0] wb_reg_wr_data_out,  // COMMIT_PACKET.data_out
 	// input from IF stage
 	input IF_ID_PACKET if_id_packet_in,
 	// input from Maptable
@@ -226,10 +226,8 @@ module is_stage #(parameter FU_NUM=3) (
 	input [`XLEN-1:0] rs2_read_rob_value, 
 	// input from RS
     input [FU_NUM-1:0] rs_full,
-	// ??
-    input stall_in,
 	
-	// output to RS (+ ROB)
+	// output to RS + ROB + Maptable
 	output ID_EX_PACKET id_packet_out, // rob.dest_reg, rs, maptable.inst
 	output rs_enable, // rs.enable
     // output to rob
@@ -242,7 +240,7 @@ module is_stage #(parameter FU_NUM=3) (
     output [`ROB_TAG_LEN-1:0] rs1_rob_tag,
 	output [`ROB_TAG_LEN-1:0] rs2_rob_tag,
 	// output to IF stage
-	output stall_out
+	output stall_if
 );
 
 	logic no_rs_available;
@@ -250,12 +248,12 @@ module is_stage #(parameter FU_NUM=3) (
 	logic [`XLEN-1:0] regf_rs1_value;
 	logic [`XLEN-1:0] regf_rs2_value;
 
-    assign stall_out = no_rs_available | rob_full;
+    assign stall_if = no_rs_available | rob_full;
     assign id_packet_out.inst = if_id_packet_in.inst;
     assign id_packet_out.NPC  = if_id_packet_in.NPC;
     assign id_packet_out.PC   = if_id_packet_in.PC;
     
-    assign alloc_enable = stall_in;
+    assign alloc_enable = !no_rs_available && !rob_full;
     assign alloc_wr_mem = id_packet_out.wr_mem;
     assign alloc_value_in = id_packet_out.rs1_value;
     assign alloc_value_in_valid = (maptable_packet_rs1.rob_tag_val == 0);
@@ -306,20 +304,25 @@ module is_stage #(parameter FU_NUM=3) (
 	end
 
 	// Determine which RS should be allocated
+	// Logic can be different according to the number of functional unit types
 	always_comb begin
 		no_rs_available = `FALSE;
 		if (id_packet_out.rd_mem || id_packet_out.wr_mem) begin
-			rs_enable = `FU_ACU;
 			// if Load/Store instruction needs to issue
 			// but if the corresponding RS is full -> Stall IF stage
-			if (rs_full[`FU_ACU]) no_rs_available = `TRUE;
+			if (rs_full[`FU_ACU]) begin
+				no_rs_available = `TRUE;
+			end
 		end
 		else begin
-			rs_enable = `FU_ALU;
 			// if the corresponding RS of the instruction is full -> Stall IF stage
-			if (rs_full[`FU_ALU]) no_rs_available = `TRUE;
+			if (rs_full[`FU_ALU]) begin
+				no_rs_available = `TRUE;
+			end
 		end
 	end
+
+	assign rs_enable = (rob_full || no_rs_available) ? `RS_DISABLE : (id_packet_out.rd_mem || id_packet_out.wr_mem) ? `FU_ACU : `FU_ALU;
 
 	assign rs1_rob_tag = maptable_packet_rs1.rob_tag_val;
 	assign rs2_rob_tag = maptable_packet_rs2.rob_tag_val;

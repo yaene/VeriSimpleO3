@@ -16,10 +16,9 @@ module is_stage_tb;
     logic [`XLEN-1:0] rs1_read_rob_value;
     logic [`XLEN-1:0] rs2_read_rob_value;
     logic [FU_NUM-1:0] rs_full;
-    logic stall_in;
 
-    logic [FU_NUM-1:0] fu_option;
     ID_EX_PACKET id_packet_out;
+    logic rs_enable;
     logic alloc_enable;
     logic alloc_wr_mem;
     logic [`XLEN-1:0] alloc_value_in;    
@@ -28,7 +27,7 @@ module is_stage_tb;
 	logic [2:0] alloc_mem_size;
     logic [`ROB_TAG_LEN-1:0] rs1_rob_tag;
 	logic [`ROB_TAG_LEN-1:0] rs2_rob_tag;
-	logic stall_out;
+	logic stall_if;
 
     is_stage #(.FU_NUM(FU_NUM)) is_0 (
         .clock(clock),
@@ -43,10 +42,9 @@ module is_stage_tb;
         .rs1_read_rob_value(rs1_read_rob_value),
         .rs2_read_rob_value(rs2_read_rob_value),
         .rs_full(rs_full),
-        .stall_in(stall_in),
 
-        .fu_option(fu_option),
         .id_packet_out(id_packet_out),
+        .rs_enable(rs_enable),
         .alloc_enable(alloc_enable),
         .alloc_wr_mem(alloc_wr_mem),
         .alloc_value_in(alloc_value_in),
@@ -55,7 +53,7 @@ module is_stage_tb;
         .alloc_mem_size(alloc_mem_size),
         .rs1_rob_tag(rs1_rob_tag),
         .rs2_rob_tag(rs2_rob_tag),
-        .stall_out(stall_out)
+        .stall_if(stall_if)
     );
 
     always begin

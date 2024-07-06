@@ -319,8 +319,9 @@ typedef struct packed {
 
 // `define FU_NUM 3
 // FU OPTION
-`define FU_ACU 2'h0
-`define FU_ALU 2'h1
+`define RS_DISABLE 2'h0
+`define FU_ACU 2'h1
+`define FU_ALU 2'h2
 
 typedef struct packed {
 	logic [`XLEN-1:0] NPC;   // PC + 4
