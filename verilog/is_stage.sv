@@ -255,7 +255,7 @@ module is_stage #(parameter FU_NUM=3) (
     
     assign alloc_enable = !no_rs_available && !rob_full;
     assign alloc_wr_mem = id_packet_out.wr_mem;
-    assign alloc_value_in = id_packet_out.rs1_value;
+    assign alloc_value_in = id_packet_out.rs2_value;
     assign alloc_value_in_valid = (maptable_packet_rs1.rob_tag_val == 0);
     assign alloc_store_dep = maptable_packet_rs1.rob_tag_val;
 
