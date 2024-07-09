@@ -23,10 +23,10 @@ module mem_stage(
 	input  [`XLEN-1:0] Dmem2proc_data,	// input from system
 
 
-	input LB_PACKET lb_packet_out,			// from load buffer
+	input LB_PACKET lb_packet_in,			// from load buffer
 	input logic  read_mem,					// form load buffer
 
-	input COMMIT_PACKET  cmt_packet_out,	// from commit stage
+	input COMMIT_PACKET  cmt_packet_in,	// from commit stage
 	
 	
 	output mem_busy,					//to load buffer
@@ -42,33 +42,34 @@ module mem_stage(
 
 	// Determine the command that must be sent to mem
 	assign proc2Dmem_command =
-	                        (cmt_packet_out.wr_mem & cmt_packet_out.valid) ? BUS_STORE :
+	                        (cmt_packet_in.wr_mem & cmt_packet_in.valid) ? BUS_STORE :
 							(read_mem) ? BUS_LOAD :
 	                        BUS_NONE;
 
-	// FIXME:
-	assign proc2Dmem_size = MEM_SIZE'(cmt_packet_out.mem_size[1:0]);	//only the 2 LSB to determine the size;
+	assign proc2Dmem_size = proc2Dmem_command == BUS_LOAD 
+		? MEM_SIZE'(lb_packet_in.mem_size[1:0]) 
+		: MEM_SIZE'(cmt_packet_in.mem_size[1:0]);	//only the 2 LSB to determine the size;
 	assign mem_busy = (proc2Dmem_command!=BUS_NONE);
 
 
 	// The memory address is calculated by the ALU
-	assign proc2Dmem_data = cmt_packet_out.data_out;
+	assign proc2Dmem_data = cmt_packet_in.data_out;
 
-	assign proc2Dmem_addr = cmt_packet_out.mem_address;	
+	assign proc2Dmem_addr = cmt_packet_in.mem_address;	
 	// Assign the result-out for next stage
 	always_comb begin
-		mem_result_out = cmt_packet_out.data_out;
+		mem_result_out = cmt_packet_in.data_out;
 		if (read_mem) begin //read memory, load
-			if (~cmt_packet_out.mem_size[2]) begin //is this an signed/unsigned load?
-				if (cmt_packet_out.mem_size[1:0] == 2'b0)
+			if (~cmt_packet_in.mem_size[2]) begin //is this an signed/unsigned load?
+				if (proc2Dmem_size == 2'b0)
 					mem_result_out = {{(`XLEN-8){Dmem2proc_data[7]}}, Dmem2proc_data[7:0]};
-				else if  (cmt_packet_out.mem_size[1:0] == 2'b01) 
+				else if  (proc2Dmem_size == 2'b01) 
 					mem_result_out = {{(`XLEN-16){Dmem2proc_data[15]}}, Dmem2proc_data[15:0]};
 				else mem_result_out = Dmem2proc_data;
 			end else begin
-				if (cmt_packet_out.mem_size[1:0] == 2'b0)
+				if (proc2Dmem_size == 2'b0)
 					mem_result_out = {{(`XLEN-8){1'b0}}, Dmem2proc_data[7:0]};
-				else if  (cmt_packet_out.mem_size[1:0] == 2'b01)
+				else if  (proc2Dmem_size == 2'b01)
 					mem_result_out = {{(`XLEN-16){1'b0}}, Dmem2proc_data[15:0]};
 				else mem_result_out = Dmem2proc_data;
 			end
