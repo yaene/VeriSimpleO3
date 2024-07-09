@@ -62,27 +62,6 @@ typedef enum logic [3:0] {
 	STORE_PAGE_FAULT    = 4'hf
 } EXCEPTION_CODE;
 
-
-//////////////////////////////////////////////
-//
-// Datapath control signals
-//
-//////////////////////////////////////////////
-
-
-
-
-`define ROB_TAG_LEN 4
-typedef struct packed {
-	logic [`ROB_TAG_LEN - 1:0] rob_tag_val;
-	logic rob_tag_ready;
-} MAPTABLE_PACKET;
-
-typedef struct packed {
-	logic valid;
-    logic [`ROB_TAG_LEN-1:0] rob_tag; // identifies instruction that produced value
-    logic [`XLEN-1:0] value;
-} CDB_DATA;
 //////////////////////////////////////////////
 //
 // Datapath control signals
@@ -281,6 +260,27 @@ typedef struct packed {
 } ROB_ENTRY;
 
 
+// Common Data Bus
+typedef struct packed {
+	logic valid;
+    logic [`ROB_TAG_LEN-1:0] rob_tag; // identifies instruction that produced value
+    logic [`XLEN-1:0] value;
+} CDB_DATA;
+
+// Map table
+
+typedef struct packed {
+	logic [`ROB_TAG_LEN - 1:0] rob_tag_val;
+	logic rob_tag_ready;
+} MAPTABLE_PACKET;
+
+typedef struct packed{
+    logic valid;
+    logic [`XLEN-1:0] address;
+    logic [`ROB_TAG_LEN-1:0] rd_tag;
+    logic [2:0] mem_size;
+} LB_PACKET;
+
 //////////////////////////////////////////////
 //
 // IF Packets:
@@ -342,6 +342,7 @@ typedef struct packed {
 	logic             halt, illegal, csr_op, valid;
 	logic [2:0]       mem_size; // byte, half-word or word
 } EX_MEM_PACKET;
+
 typedef struct packed {
 	logic valid;
 	logic ready;
@@ -350,9 +351,11 @@ typedef struct packed {
     logic [`ROB_TAG_LEN-1:0] rs2_tag;
     logic rs1_ready;
     logic rs2_ready;
-    logic [4:0] rs1_value;
-    logic [4:0] rs2_value;
+    logic [`XLEN:0] rs1_value;
+    logic [`XLEN:0] rs2_value;
 	logic [`BIRTHDAY_SIZE-1:0]birthday;
-	INST instr;
+	ID_EX_PACKET instr;
 } INSTR_READY_ENTRY;
+
+
 `endif // __SYS_DEFS_VH__
