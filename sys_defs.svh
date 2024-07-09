@@ -295,7 +295,7 @@ typedef struct packed {
 
 	logic [4:0] reg_wr_idx_out;        // register writeback index
 	logic       reg_wr_en_out;          // register writeback enable
-}COMMIT_PACKET;
+} COMMIT_PACKET;
 
 // Map table
 

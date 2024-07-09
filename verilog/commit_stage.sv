@@ -21,11 +21,11 @@ module commit_stage(
   assign cmt_packet_out.mem_size = head_entry.mem_size;
 
   // for memory stage
-  assign cmt_packet_out.wr_mem = (head_ready && head_entry.valid);
+  assign cmt_packet_out.wr_mem = (head_ready && head_entry.wr_mem);
   assign cmt_packet_out.mem_address = head_entry.dest_addr;
 
   // for register write back
   assign cmt_packet_out.reg_wr_idx_out = head_entry.dest_reg;
-  assign cmt_packet_out.reg_wr_en_out  = head_entry.dest_reg != `ZERO_REG;
+  assign cmt_packet_out.reg_wr_en_out  = (head_ready && head_entry.dest_reg != `ZERO_REG);
 
 endmodule // module commit_stage
