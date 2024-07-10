@@ -150,7 +150,7 @@ module alu_execution_unit(
             branch_target_PC = result;
             alu_cdb_output = '0;
         end
-        else if ((~ready_inst_entry.instr.uncond_branch) && (~ready_inst_entry.instr.cond_branch)) begin
+        else if (ready_inst_entry.ready && (~ready_inst_entry.instr.uncond_branch) && (~ready_inst_entry.instr.cond_branch)) begin
             branch_target_PC = 0; //no matter what, since not take_branch
             alu_cdb_output.valid = 1;
             alu_cdb_output.value = result;
@@ -200,13 +200,18 @@ module address_calculation_unit(
         load_buffer_packet.mem_size = ready_inst_entry.instr.inst.r.funct3;
         store_result.value = result;
         store_result.rob_tag = ready_inst_entry.rd_tag;
-        if (ready_inst_entry.instr.rd_mem) begin //load
+        if (ready_inst_entry.ready) begin
+            if (ready_inst_entry.instr.rd_mem) begin //load
+                store_result.valid = 0;
+                load_buffer_packet.valid = 1;
+                
+            end
+            else begin //store wr_mem = 1
+                store_result.valid = 1;
+                load_buffer_packet.valid = 0;
+            end
+        end else begin
             store_result.valid = 0;
-            load_buffer_packet.valid = 1;
-            
-        end
-        else begin //store wr_mem = 1
-            store_result.valid = 1;
             load_buffer_packet.valid = 0;
         end
     end
