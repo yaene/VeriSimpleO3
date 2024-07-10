@@ -298,7 +298,7 @@ module pipeline (
 //////////////////////////////////////////////////
 
 
-ReservationStation #(.NO_WAIT_RS2 = 1) ld_st_rs  (
+ReservationStation #(.NO_WAIT_RS2(1)) ld_st_rs  (
 	//inputs
 	.clk(clock),
 	.reset(reset),
@@ -316,7 +316,7 @@ ReservationStation #(.NO_WAIT_RS2 = 1) ld_st_rs  (
 	.ready_inst_entry(ready_inst_entry_st_ld)
 );
 
-ReservationStation #(.NO_WAIT_RS2 = 1) alu_rs  (
+ReservationStation #(.NO_WAIT_RS2(0)) alu_rs  (
 	//inputs
 	.clk(clock),
 	.reset(reset),
