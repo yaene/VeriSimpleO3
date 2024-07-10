@@ -14,7 +14,7 @@
 module if_stage(
 	input         clock,                  // system clock
 	input         reset,                  // system reset
-	input         if_stall,
+	input         if_enable,              // should PC be updated
 	input         ex_take_branch,         // taken-branch signal
 	input  [`XLEN-1:0] ex_target_pc,        // target pc: use if take_branch is TRUE
 	input  [63:0] Imem2proc_data,          // Data coming back from instruction-memory
@@ -43,7 +43,7 @@ module if_stage(
 	assign next_PC = ex_take_branch ? ex_target_pc : PC_plus_4;
 	
 	// The take-branch signal must override stalling (otherwise it may be lost)
-	assign PC_enable = ~if_stall | ex_take_branch;
+	assign PC_enable = if_enable | ex_take_branch;
 	
 	// Pass PC+4 down pipeline w/instruction
 	assign if_packet_out.NPC = PC_plus_4;

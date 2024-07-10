@@ -71,8 +71,20 @@ module pipeline (
 
 );
 
-	// Pipeline register enables
-	logic if_id_enable, alu_wr_enable, lb_wr_enable, acu_wr_enable;
+	// hazard detection unit outputs
+    logic if_enable;
+    logic if_is_enable;
+    logic if_is_flush; // branch misprediction
+    logic rob_enable;
+    logic rs_ld_st_enable;
+	logic rs_ld_exec_stall;
+	logic rs_alu_enable;
+    logic rs_alu_exec_stall;
+    logic lb_exec_stall;
+    logic alu_wr_enable;
+    logic lb_wr_enable;
+    logic acu_wr_enable;
+
 	
 	// Outputs from IF-Stage
 	logic [`XLEN-1:0] proc2Imem_addr;
@@ -99,10 +111,10 @@ module pipeline (
 
 	// Outputs from Issue stage
 	ID_EX_PACKET is_packet;
-	logic ld_st_rs_enable, alu_rs_enable;
+	logic is_ld_st_inst;
 	logic [`XLEN-1:0] rob_alloc_store_value; 
 	logic [`ROB_TAG_LEN-1:0] rob_alloc_store_dep_inst;
-	logic rob_alloc_enable, rob_alloc_wr_mem, is_hazard;
+	logic rob_alloc_wr_mem, is_hazard;
     logic [`XLEN-1:0] rob_alloc_value_in;
     logic rob_alloc_value_in_valid;
 	logic [2:0] rob_alloc_mem_size;
@@ -119,6 +131,8 @@ module pipeline (
 	logic [`ROB_TAG_LEN-1:0] lb_rob_tag;
 	logic [`XLEN-1:0] lb_address;
 	LB_PACKET lb_packet;
+	logic ex_take_branch;
+	logic [`XLEN-1:0]  ex_target_pc;
 
 
 	// Outputs from EX/WR Pipeline Register
@@ -177,6 +191,9 @@ module pipeline (
 		// Inputs
 		.clock (clock),
 		.reset (reset),
+		.if_enable(if_enable),
+		.ex_take_branch(ex_take_branch),
+		.ex_target_pc(ex_target_pc),
 		.Imem2proc_data(mem2proc_data),
 		
 		// Outputs
@@ -194,18 +211,17 @@ module pipeline (
 	assign if_id_NPC        = if_is_packet.NPC;
 	assign if_id_IR         = if_is_packet.inst;
 	assign if_id_valid_inst = if_is_packet.valid;
-	assign if_id_enable = 1'b1; // always enabled
 	// synopsys sync_set_reset "reset"
 	always_ff @(posedge clock) begin
-		if (reset) begin 
+		if (reset | if_is_flush) begin 
 			if_is_packet.inst  <= `SD `NOP;
 			if_is_packet.valid <= `SD `FALSE;
             if_is_packet.NPC   <= `SD 0;
             if_is_packet.PC    <= `SD 0;
 		end else begin// if (reset)
-			if (if_id_enable) begin
+			if (if_is_enable) begin
 				if_is_packet <= `SD if_packet; 
-			end // if (if_id_enable)	
+			end // if (if_is_enable)	
 		end
 	end // always
 
@@ -218,7 +234,7 @@ module pipeline (
 		// inputs
 		.clock(clock),
 		.reset(reset),
-		.alloc_enable(rob_alloc_enable),
+		.alloc_enable(rob_enable),
 		.alloc_wr_mem(rob_alloc_wr_mem),
 		.alloc_value_in(rob_alloc_value_in),
 		.alloc_store_dep(rob_alloc_store_dep_inst),
@@ -243,6 +259,35 @@ module pipeline (
 		.head(rob_head),
 		.head_ready(rob_head_ready)
 	);
+
+//////////////////////////////////////////////////
+//                                              //
+//             Hazard Detection                 //
+//                                              //
+//////////////////////////////////////////////////
+
+hazard_detection_unit hdu_0 (
+	// inputs
+	.rs_ld_st_full(rs_ld_st_full),
+	.rs_alu_full(rs_alu_full),
+	.rob_full(rob_full),
+	.lb_full(lb_full),
+	.is_ld_st_inst(is_ld_st_inst),
+	.is_valid_inst(is_packet.valid_inst)
+	// outputs
+    .if_enable(if_enable),
+    .if_is_enable(if_is_enable),
+    .if_is_flush(if_is_flush), // branch misprediction
+    .rob_enable(rob_enable),
+    .rs_ld_st_enable(rs_ld_st_enable),
+	.rs_ld_exec_stall(rs_ld_exec_stall),
+	.rs_alu_enable(rs_alu_enable),
+    .rs_alu_exec_stall(rs_alu_exec_stall),
+    .lb_exec_stall(lb_exec_stall),
+    .alu_wr_enable(alu_wr_enable),
+    .lb_wr_enable(lb_wr_enable),
+    .acu_wr_enable(acu_wr_enable)
+);
 
    
 //////////////////////////////////////////////////
@@ -279,9 +324,7 @@ module pipeline (
 		
 		// Outputs
 		.id_packet_out(is_packet),
-		.rs_alu_enable(alu_rs_enable),
-		.rs_ld_st_enable(ld_st_rs_enable),
-		.alloc_enable(rob_alloc_enable),
+		.is_ld_st_inst(is_ld_st_inst),
 		.alloc_wr_mem(rob_alloc_wr_mem),
 		.alloc_value_in(rob_alloc_value_in),
 		.alloc_store_dep(rob_alloc_store_dep_inst),
@@ -289,7 +332,6 @@ module pipeline (
 		.alloc_mem_size(rob_alloc_mem_size),
 		.rs1_rob_tag(is_rs1_rob_tag),
 		.rs2_rob_tag(is_rs2_rob_tag),
-		.stall_if(is_hazard)
 	);
 
 //////////////////////////////////////////////////
@@ -308,9 +350,8 @@ ReservationStation #(.NO_WAIT_RS2(1)) ld_st_rs  (
 	.maptable_packet_rs1(maptable_packet_rs1),
 	.maptable_packet_rs2(maptable_packet_rs2),
 	.alloc_slot(rob_alloc_slot),
-	.alloc_enable(ld_st_rs_enable),
-	// todo: handle execution stalls
-	// .exec_stall(...)
+	.alloc_enable(rs_ld_st_enable),
+	.exec_stall(rs_ld_exec_stall)
 
 	// outputs
 	.rs_full(rs_ld_st_full),
@@ -326,9 +367,8 @@ ReservationStation #(.NO_WAIT_RS2(0)) alu_rs  (
 	.maptable_packet_rs1(maptable_packet_rs1),
 	.maptable_packet_rs2(maptable_packet_rs2),
 	.alloc_slot(rob_alloc_slot),
-	.alloc_enable(alu_rs_enable),
-	// todo: handle execution stalls
-	// .exec_stall(...)
+	.alloc_enable(rs_alu_enable),
+	.exec_stall(rs_alu_exec_stall)
 
 	// outputs
 	.rs_full(rs_alu_full),
@@ -346,7 +386,9 @@ alu_execution_unit alu_0 (
 	// inputs
 	.ready_inst_entry(rs_alu_out),
 	// outputs
-	.alu_cdb_output(alu_packet)
+	.alu_cdb_output(alu_packet),
+	.ex_take_branch(ex_take_branch),
+	.branch_target_PC(ex_target_pc)
 );
 
 address_calculation_unit acu_0 (
@@ -355,6 +397,7 @@ address_calculation_unit acu_0 (
 	// outputs
 	.store_result(acu_st_packet),
 	.load_buffer_packet(acu_ld_packet)
+	// todo: lb exec stall
 );
 
 load_buffer load_buffer_0 (
