@@ -279,7 +279,8 @@ module pipeline (
 		
 		// Outputs
 		.id_packet_out(is_packet),
-		.rs_enable(alu_rs_enable),
+		.rs_alu_enable(alu_rs_enable),
+		.rs_ld_st_enable(ld_st_rs_enable),
 		.alloc_enable(rob_alloc_enable),
 		.alloc_wr_mem(rob_alloc_wr_mem),
 		.alloc_value_in(rob_alloc_value_in),
