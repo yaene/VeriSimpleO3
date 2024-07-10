@@ -14,8 +14,9 @@
 module if_stage(
 	input         clock,                  // system clock
 	input         reset,                  // system reset
-	input         ex_mem_take_branch,      // taken-branch signal
-	input  [`XLEN-1:0] ex_mem_target_pc,        // target pc: use if take_branch is TRUE
+	input         if_stall,
+	input         ex_take_branch,         // taken-branch signal
+	input  [`XLEN-1:0] ex_target_pc,        // target pc: use if take_branch is TRUE
 	input  [63:0] Imem2proc_data,          // Data coming back from instruction-memory
 	output logic [`XLEN-1:0] proc2Imem_addr,    // Address sent to Instruction memory
 	output IF_ID_PACKET if_packet_out         // Output data packet from IF going to ID, see sys_defs for signal information 
@@ -39,12 +40,10 @@ module if_stage(
 	// next PC is target_pc if there is a taken branch or
 	// the next sequential PC (PC+4) if no branch
 	// (halting is handled with the enable PC_enable;
-	assign next_PC = ex_mem_take_branch ? ex_mem_target_pc : PC_plus_4;
+	assign next_PC = ex_take_branch ? ex_target_pc : PC_plus_4;
 	
 	// The take-branch signal must override stalling (otherwise it may be lost)
-	// todo: update to handle IF stalls 
-	// todo: update to handle branches
-	assign PC_enable = if_packet_out.valid | ex_mem_take_branch;
+	assign PC_enable = ~if_stall | ex_take_branch;
 	
 	// Pass PC+4 down pipeline w/instruction
 	assign if_packet_out.NPC = PC_plus_4;
