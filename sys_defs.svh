@@ -365,6 +365,7 @@ typedef struct packed {
 	logic [`XLEN-1:0] mem_address;
 	logic [4:0] reg_wr_idx_out;
 	logic  reg_wr_en_out;
+	logic [`ROB_TAG_LEN-1:0] rob_tag;
 } COMMIT_PACKET;
 
 `endif // __SYS_DEFS_VH__
