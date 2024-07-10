@@ -8,6 +8,7 @@ module commit_stage(
     // From ROB
     input ROB_ENTRY head_entry,
     input head_ready,
+    input commit_rob_tag,
 
     // Output  
     // To Memory and regfiles
@@ -27,5 +28,8 @@ module commit_stage(
   // for register write back
   assign cmt_packet_out.reg_wr_idx_out = head_entry.dest_reg;
   assign cmt_packet_out.reg_wr_en_out  = (cmt_packet_out.valid && head_entry.dest_reg != `ZERO_REG);
+
+  // for map table
+  assign cmt_packet_out.rob_tag = commit_rob_tag;
 
 endmodule // module commit_stage

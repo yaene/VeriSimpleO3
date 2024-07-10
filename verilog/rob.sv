@@ -33,6 +33,7 @@ module rob (input clock,
             output [`ROB_TAG_LEN-1:0] wr_rob_tag,                        // the tag of the instruction writing back (for map table update)
             output wr_valid,                          // whether there is an instruction writing back
             output ROB_ENTRY head_entry,              // the entry of the next instn to commit
+            output logic [`ROB_TAG_LEN-1:0] head,
             output head_ready
             `ifdef DEBUG
             ,output ROB_ENTRY rob0,
@@ -43,7 +44,7 @@ module rob (input clock,
             );
     parameter ROB_SIZE = 4;
     
-    logic [`ROB_TAG_LEN-1:0] head, next_head;
+    logic [`ROB_TAG_LEN-1:0] next_head;
     logic [`ROB_TAG_LEN-1:0] tail, next_tail;
     logic clear_head, allocate_tail;
     logic [`XLEN-1:0] alloc_value;
