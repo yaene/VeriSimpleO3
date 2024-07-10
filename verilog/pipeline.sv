@@ -143,7 +143,6 @@ module pipeline (
 	logic acu_written, alu_written, load_written;
 
 	// Outputs from mem unit
-	logic [`XLEN-1:0] mem_result_out;
 	logic [`XLEN-1:0] proc2Dmem_addr;
 	logic [`XLEN-1:0] proc2Dmem_data;
 	logic [1:0]  proc2Dmem_command;
@@ -420,9 +419,6 @@ load_buffer load_buffer_0 (
 	.read_mem(lb_read_mem)
 );	
 
-// todo: there needs to be a load_ex stage that provides 
-// the CDB data to WR stage (lb_ex_packet)
-
 mem_stage mem_stage_0 (// Inputs
 		.clock(clock),
 		.reset(reset),
@@ -432,7 +428,7 @@ mem_stage mem_stage_0 (// Inputs
 		.Dmem2proc_data(mem2proc_data[`XLEN-1:0]),
 		
 		// Outputs
-		.mem_result_out(mem_result_out),
+		.lb_ex_packet_out(lb_ex_packet),
 		.proc2Dmem_command(proc2Dmem_command),
 		.proc2Dmem_size(proc2Dmem_size),
 		.proc2Dmem_addr(proc2Dmem_addr),
