@@ -351,11 +351,20 @@ typedef struct packed {
     logic [`ROB_TAG_LEN-1:0] rs2_tag;
     logic rs1_ready;
     logic rs2_ready;
-    logic [`XLEN:0] rs1_value;
-    logic [`XLEN:0] rs2_value;
-	logic [`BIRTHDAY_SIZE-1:0]birthday;
+    logic [`XLEN-1:0] rs1_value;
+    logic [`XLEN-1:0] rs2_value;
+	logic [`BIRTHDAY_SIZE-1:0] birthday;
 	ID_EX_PACKET instr;
 } INSTR_READY_ENTRY;
 
+typedef struct packed {
+	logic valid;
+	logic [`XLEN-1:0] data_out;
+	logic [1:0] mem_size;
+	logic wr_mem;
+	logic [`XLEN-1:0] mem_address;
+	logic [4:0] reg_wr_idx_out;
+	logic  reg_wr_en_out;
+} COMMIT_PACKET;
 
 `endif // __SYS_DEFS_VH__
