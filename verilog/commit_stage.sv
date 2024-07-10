@@ -8,11 +8,11 @@ module commit_stage(
     // From ROB
     input ROB_ENTRY head_entry,
     input head_ready,
-    input commit_rob_tag,
+    input [`ROB_TAG_LEN-1:0] commit_rob_tag,
 
     // Output  
     // To Memory and regfiles
-    output COMMIT_PACKET  cmt_packet_out,
+    output COMMIT_PACKET  cmt_packet_out
 
 );
 

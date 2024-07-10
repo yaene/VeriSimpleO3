@@ -72,14 +72,14 @@ module pipeline (
 );
 
 	// Pipeline register enables
-	logic if_id_enable, alu_wr_enable, ldst_wr_enable;
+	logic if_id_enable, alu_wr_enable, lb_wr_enable, acu_wr_enable;
 	
 	// Outputs from IF-Stage
 	logic [`XLEN-1:0] proc2Imem_addr;
-	if_is_packet if_packet;
+	IF_ID_PACKET if_packet;
 
 	// Outputs from IF/IS Pipeline Register
-	if_is_packet if_is_packet;
+	IF_ID_PACKET if_is_packet;
 
 	// outputs from maptable
 	MAPTABLE_PACKET maptable_packet_rs1, maptable_packet_rs2;
@@ -93,7 +93,7 @@ module pipeline (
 	logic [4:0] rob_wr_dest_reg;                       
 	logic [`ROB_TAG_LEN-1:0] wr_rob_tag;              
 	logic rob_wr_valid;                          
-	logic ROB_ENTRY rob_head_entry;             
+	ROB_ENTRY rob_head_entry;             
 	logic [`ROB_TAG_LEN-1:0] rob_head;
 	logic rob_head_ready;
 
@@ -106,11 +106,11 @@ module pipeline (
     logic [`XLEN-1:0] rob_alloc_value_in;
     logic rob_alloc_value_in_valid;
 	logic [2:0] rob_alloc_mem_size;
-    logic [`ROB_TAG_LEN-1:0] rob_alloc_store_dep, is_rs1_rob_tag,  is_rs2_rob_tag,
+    logic [`ROB_TAG_LEN-1:0] rob_alloc_store_dep, is_rs1_rob_tag,  is_rs2_rob_tag;
 
 	// Outputs from Reservation Stations
-	INSTR_READY_ENTRY ld_st_rs_out, alu_rs_out;
-	logic ld_st_rs_full, alu_rs_full;
+	INSTR_READY_ENTRY rs_ld_st_out, rs_alu_out;
+	logic rs_ld_st_full, rs_alu_full;
 	
 	// Outputs from EX-Stage
 	CDB_DATA alu_packet, acu_st_packet, lb_ex_packet;
@@ -225,8 +225,8 @@ module pipeline (
 		.alloc_value_in_valid(rob_alloc_value_in_valid),
 		.dest_reg(is_packet.dest_reg_idx),
 		.alloc_mem_size(rob_alloc_mem_size),
-		.read_rob_tag_rs1(map_table_packet_rs1.rob_tag_val),
-		.read_rob_tag_rs2(map_table_packet_rs2.rob_tag_val),
+		.read_rob_tag_rs1(maptable_packet_rs1.rob_tag_val),
+		.read_rob_tag_rs2(maptable_packet_rs2.rob_tag_val),
 		.cdb_data(cdb_data),
 		.load_address(lb_address),
 		.load_rob_tag(lb_rob_tag),
@@ -312,8 +312,8 @@ ReservationStation #(.NO_WAIT_RS2(1)) ld_st_rs  (
 	// .exec_stall(...)
 
 	// outputs
-	.rs_full(rs_st_ld_full),
-	.ready_inst_entry(ready_inst_entry_st_ld)
+	.rs_full(rs_ld_st_full),
+	.ready_inst_entry(rs_ld_st_out)
 );
 
 ReservationStation #(.NO_WAIT_RS2(0)) alu_rs  (
@@ -330,8 +330,8 @@ ReservationStation #(.NO_WAIT_RS2(0)) alu_rs  (
 	// .exec_stall(...)
 
 	// outputs
-	.rs_full(alu_rs_full),
-	.ready_inst_entry(ready_inst_entry_alu)
+	.rs_full(rs_alu_full),
+	.ready_inst_entry(rs_alu_out)
 );
 
 
@@ -343,14 +343,14 @@ ReservationStation #(.NO_WAIT_RS2(0)) alu_rs  (
 
 alu_execution_unit alu_0 (
 	// inputs
-	.ready_inst_entry(ready_inst_entry_alu),
+	.ready_inst_entry(rs_alu_out),
 	// outputs
-	.alu_cdb_output(alu_packet),
+	.alu_cdb_output(alu_packet)
 );
 
 address_calculation_unit acu_0 (
 	// inputs
-	.ready_inst_entry(ready_inst_entry_st_ld),
+	.ready_inst_entry(rs_ld_st_out),
 	// outputs
 	.store_result(acu_st_packet),
 	.load_buffer_packet(acu_ld_packet)
@@ -362,7 +362,7 @@ load_buffer load_buffer_0 (
 	.reset(reset),
 	.lb_packet_in(acu_ld_packet),
 	// all reasons when lb should not alloc are handled by lb_packet_in and full
-	.alloc_enable(1), 
+	.alloc_enable(`TRUE), 
 	.pending_stores(pending_stores),
 	// todo: likely a bug - loop from mem_busy to mem_command
 	// mem_command none -> not busy -> mem_command load -> busy -> ...
@@ -382,7 +382,9 @@ load_buffer load_buffer_0 (
 mem_stage mem_stage_0 (// Inputs
 		.clock(clock),
 		.reset(reset),
-		.ex_mem_packet_in(ex_mem_packet),
+		.lb_packet_in(lb_packet),
+		.read_mem(lb_read_mem),
+		.cmt_packet_in(commit_packet),
 		.Dmem2proc_data(mem2proc_data[`XLEN-1:0]),
 		
 		// Outputs
