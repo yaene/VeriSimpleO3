@@ -61,11 +61,7 @@ module ReservationStation #(parameter NO_WAIT_RS2 = 0)(
     always_ff @(posedge clk) begin
         if (reset) begin
             for (integer i = 0; i < `RS_DEPTH; i = i + 1) begin
-                instr_ready_table[i].valid <= 0;
-                instr_ready_table[i].ready <= 0;
-                instr_ready_table[i].rs1_ready <= 0;
-                instr_ready_table[i].rs2_ready <= 0;
-                instr_ready_table[i].birthday <= 0;
+                instr_ready_table[i] <= '0;
             end
         end
         else if (alloc_enable && !rs_full) begin
@@ -97,7 +93,7 @@ module ReservationStation #(parameter NO_WAIT_RS2 = 0)(
         
         // ready instruction was processed last cycle unless stalled
         if (found_ready_instr && !exec_stall) begin
-            instr_ready_table[ready_inst_index].valid <= 0;
+            instr_ready_table[ready_inst_index] <= '0;
         end
     end
 endmodule
