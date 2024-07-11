@@ -272,7 +272,9 @@ hazard_detection_unit hdu_0 (
 	.rob_full(rob_full),
 	.lb_full(lb_full),
 	.is_ld_st_inst(is_ld_st_inst),
-	.is_valid_inst(is_packet.valid_inst)
+	.is_valid_inst(is_packet.valid_inst),
+	.commit_wr_mem(commit_packet.wr_mem),
+	.ex_rd_mem(lb_read_mem),
 	// outputs
     .if_enable(if_enable),
     .if_is_enable(if_is_enable),
