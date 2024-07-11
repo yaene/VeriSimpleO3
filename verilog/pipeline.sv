@@ -277,7 +277,7 @@ hazard_detection_unit hdu_0 (
 	.rob_full(rob_full),
 	.lb_full(lb_full),
 	.is_ld_st_inst(is_ld_st_inst),
-	.is_valid_inst(is_packet.valid_inst),
+	.is_valid_inst(is_packet.valid),
 	.commit_wr_mem(commit_packet.wr_mem),
 	.lb_read_mem(lb_read_mem),
 	.is_branch(is_branch),
@@ -403,7 +403,7 @@ alu_execution_unit alu_0 (
 	.ready_inst_entry(rs_alu_out),
 	// outputs
 	.alu_cdb_output(alu_packet),
-	.ex_take_branch(ex_take_branch),
+	.take_branch(ex_take_branch),
 	.branch_target_PC(ex_target_pc)
 );
 

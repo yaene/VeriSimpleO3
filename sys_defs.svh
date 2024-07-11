@@ -354,7 +354,7 @@ typedef struct packed {
 typedef struct packed {
 	logic valid;
 	logic [`XLEN-1:0] data_out;
-	logic [1:0] mem_size;
+	logic [2:0] mem_size;
 	logic wr_mem;
 	logic [`XLEN-1:0] mem_address;
 	logic [4:0] reg_wr_idx_out;
