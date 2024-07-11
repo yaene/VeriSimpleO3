@@ -341,6 +341,10 @@ hazard_detection_unit hdu_0 (
 		.wb_reg_wr_en_out   (commit_packet.reg_wr_en_out),
 		.wb_reg_wr_idx_out  (commit_packet.reg_wr_idx_out),
 		.wb_reg_wr_data_out (commit_packet.data_out),
+		.maptable_packet_rs1(maptable_packet_rs1),
+		.maptable_packet_rs2(maptable_packet_rs2),
+		.rs1_read_rob_value(rob_read_value_rs1),
+		.rs2_read_rob_value(rob_read_value_rs2),
 		
 		// Outputs
 		.id_packet_out(is_packet),
