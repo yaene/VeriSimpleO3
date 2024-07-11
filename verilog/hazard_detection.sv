@@ -51,7 +51,7 @@ module hazard_detection_unit (
     assign rs_alu_enable = ~is_stall & is_valid_inst & ~is_ld_st_inst;
     assign rob_enable = ~is_stall & is_valid_inst;
 
-    assign if_enable = ~( if_mem_hazard | is_stall);
+    assign if_enable = ~(if_mem_hazard | is_stall);
     assign if_is_enable = ~is_stall;
     assign if_is_flush = ex_take_branch | (if_mem_hazard & ~is_stall);
 

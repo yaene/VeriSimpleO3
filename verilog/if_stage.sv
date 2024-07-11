@@ -27,7 +27,6 @@ module if_stage(
 	
 	logic    [`XLEN-1:0] PC_plus_4;
 	logic    [`XLEN-1:0] next_PC;
-	logic           PC_enable;
 	
 	assign proc2Imem_addr = {PC_reg[`XLEN-1:3], 3'b0};
 	
@@ -53,7 +52,7 @@ module if_stage(
 	always_ff @(posedge clock) begin
 		if(reset)
 			PC_reg <= `SD 0;       // initial PC value is 0
-		else if(PC_enable)
+		else if(if_enable)
 			PC_reg <= `SD next_PC; // transition to next PC
 	end  // always
 

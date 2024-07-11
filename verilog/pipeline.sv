@@ -272,6 +272,8 @@ assign alu_branch = rs_alu_out.instr.cond_branch
 
 hazard_detection_unit hdu_0 (
 	// inputs
+	.clock(clock),
+	.reset(reset),
 	.rs_ld_st_full(rs_ld_st_full),
 	.rs_alu_full(rs_alu_full),
 	.rob_full(rob_full),
@@ -289,6 +291,8 @@ hazard_detection_unit hdu_0 (
 	.lb_wr_written(load_written),
 	.acu_wr_valid(acu_wr_packet.valid),
 	.acu_wr_written(acu_written),
+	.acu_wr_mem(acu_st_packet.valid),
+	.acu_rd_mem(acu_ld_packet.valid),
 
 	// outputs
     .if_enable(if_enable),
