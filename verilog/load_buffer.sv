@@ -36,6 +36,7 @@ module load_buffer (
             end
             else begin
                 if (read_mem && ~lb_exec_stall) begin
+                    lb_packet <= `EMPTY_LB_PACKET;
                     full <= `FALSE;
                 end
             end
@@ -46,7 +47,16 @@ module load_buffer (
 
     assign load_address = lb_packet.address;
     assign load_rob_tag = lb_packet.rd_tag;
-    assign lb_packet_out = lb_packet;
+
+    always_comb begin
+        lb_packet_out = lb_packet;
+        if (~read_mem || lb_exec_stall) begin
+            // make sure that if we have no result available
+            // it is not accidentally put on CDB
+            lb_packet_out.valid = `FALSE;
+        end
+    end
+    
 
 endmodule
 
