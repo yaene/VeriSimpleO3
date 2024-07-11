@@ -279,7 +279,7 @@ hazard_detection_unit hdu_0 (
 	.is_ld_st_inst(is_ld_st_inst),
 	.is_valid_inst(is_packet.valid_inst),
 	.commit_wr_mem(commit_packet.wr_mem),
-	.ex_rd_mem(lb_read_mem),
+	.lb_read_mem(lb_read_mem),
 	.is_branch(is_branch),
 	.alu_branch(alu_branch),
 	.ex_take_branch(ex_take_branch),
@@ -347,7 +347,7 @@ hazard_detection_unit hdu_0 (
 		.alloc_value_in_valid(rob_alloc_value_in_valid),
 		.alloc_mem_size(rob_alloc_mem_size),
 		.rs1_rob_tag(is_rs1_rob_tag),
-		.rs2_rob_tag(is_rs2_rob_tag),
+		.rs2_rob_tag(is_rs2_rob_tag)
 	);
 
 //////////////////////////////////////////////////
@@ -367,7 +367,7 @@ ReservationStation #(.NO_WAIT_RS2(1)) ld_st_rs  (
 	.maptable_packet_rs2(maptable_packet_rs2),
 	.alloc_slot(rob_alloc_slot),
 	.alloc_enable(rs_ld_st_enable),
-	.exec_stall(rs_ld_exec_stall)
+	.exec_stall(rs_ld_exec_stall),
 
 	// outputs
 	.rs_full(rs_ld_st_full),
@@ -384,7 +384,7 @@ ReservationStation #(.NO_WAIT_RS2(0)) alu_rs  (
 	.maptable_packet_rs2(maptable_packet_rs2),
 	.alloc_slot(rob_alloc_slot),
 	.alloc_enable(rs_alu_enable),
-	.exec_stall(rs_alu_exec_stall)
+	.exec_stall(rs_alu_exec_stall),
 
 	// outputs
 	.rs_full(rs_alu_full),
@@ -413,7 +413,6 @@ address_calculation_unit acu_0 (
 	// outputs
 	.store_result(acu_st_packet),
 	.load_buffer_packet(acu_ld_packet)
-	// todo: lb exec stall
 );
 
 load_buffer load_buffer_0 (
@@ -424,10 +423,7 @@ load_buffer load_buffer_0 (
 	// all reasons when lb should not alloc are handled by lb_packet_in and full
 	.alloc_enable(`TRUE), 
 	.pending_stores(pending_stores),
-	// todo: likely a bug - loop from mem_busy to mem_command
-	// mem_command none -> not busy -> mem_command load -> busy -> ...
-	// should be handled together with mem structural hazard, considering IF as well
-	.mem_busy(mem_busy),
+	.lb_exec_stall(lb_exec_stall),
 	// outputs
 	.lb_packet_out(lb_packet),
 	.full(lb_full),

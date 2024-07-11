@@ -11,7 +11,7 @@ module load_buffer (
     input LB_PACKET lb_packet_in,
     input alloc_enable,
     input pending_stores, // from ROB, whether there are pending stores
-    input mem_busy, // from MEM, whether MEM is available
+    input lb_exec_stall, // from hazard detection unit
 
     output LB_PACKET lb_packet_out,
     output logic full, // to ACU, whether Load Buffer is available
@@ -35,14 +35,14 @@ module load_buffer (
                 end
             end
             else begin
-                if (read_mem) begin
+                if (read_mem && ~lb_exec_stall) begin
                     full <= `FALSE;
                 end
             end
         end
     end
 
-    assign read_mem = !pending_stores && !mem_busy;
+    assign read_mem = lb_packet.valid && !pending_stores;
 
     assign load_address = lb_packet.address;
     assign load_rob_tag = lb_packet.rd_tag;
