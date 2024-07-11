@@ -283,6 +283,12 @@ hazard_detection_unit hdu_0 (
 	.is_branch(is_branch),
 	.alu_branch(alu_branch),
 	.ex_take_branch(ex_take_branch),
+	.alu_wr_valid(alu_wr_packet.valid),
+	.alu_wr_written(alu_written),
+	.lb_wr_valid(lb_wr_packet.valid),
+	.lb_wr_written(load_written),
+	.acu_wr_valid(acu_wr_packet.valid),
+	.acu_wr_written(acu_written),
 
 	// outputs
     .if_enable(if_enable),

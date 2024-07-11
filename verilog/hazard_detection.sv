@@ -13,6 +13,12 @@ module hazard_detection_unit (
     input is_branch,
     input alu_branch,
     input ex_take_branch,
+    input alu_wr_valid,
+    input alu_wr_written,
+    input lb_wr_valid,
+    input lb_wr_written,
+    input acu_wr_valid,
+    input acu_wr_written,
 
     output if_enable,
     output if_is_enable,
@@ -41,10 +47,15 @@ module hazard_detection_unit (
 
     assign rs_ld_st_enable = ~is_stall & is_valid_inst & is_ld_st_inst;
     assign rs_alu_enable = ~is_stall & is_valid_inst & ~is_ld_st_inst;
+    assign rob_enable = ~is_stall & is_valid_inst;
 
     assign if_enable = ~( if_mem_hazard | is_stall);
     assign if_is_enable = ~is_stall;
     assign if_is_flush = ex_take_branch | (if_mem_hazard & ~is_stall);
+
+    assign alu_wr_enable = ~alu_wr_valid | alu_wr_written;
+    assign lb_wr_enable = ~lb_wr_valid | lb_wr_written;
+    assign acu_wr_enable = ~acu_wr_valid | acu_wr_written;
 
 
     always_ff @(posedge clock) begin
