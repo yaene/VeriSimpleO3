@@ -12,6 +12,7 @@ module hazard_detection_unit (
     input ex_rd_mem,
     input is_branch,
     input alu_branch,
+    input ex_take_branch,
 
     output if_enable,
     output if_is_enable,
@@ -29,17 +30,21 @@ module hazard_detection_unit (
 
     logic is_stall;
     logic branch_in_exec;
+    logic if_mem_hazard;
 
     assign is_stall = rob_full
         | (is_ld_st_inst & rs_ld_st_full)
         | (~is_ld_st_inst & rs_alu_full)
         | branch_in_exec;
 
+    assign if_mem_hazard = commit_wr_mem | ex_rd_mem;
+
     assign rs_ld_st_enable = ~is_stall & is_valid_inst & is_ld_st_inst;
     assign rs_alu_enable = ~is_stall & is_valid_inst & ~is_ld_st_inst;
 
-    assign if_enable = ~(commit_wr_mem | ex_rd_mem | is_stall);
+    assign if_enable = ~( if_mem_hazard | is_stall);
     assign if_is_enable = ~is_stall;
+    assign if_is_flush = ex_take_branch | (if_mem_hazard & ~is_stall);
 
 
     always_ff @(posedge clock) begin

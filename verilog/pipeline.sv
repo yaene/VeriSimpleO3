@@ -282,6 +282,7 @@ hazard_detection_unit hdu_0 (
 	.ex_rd_mem(lb_read_mem),
 	.is_branch(is_branch),
 	.alu_branch(alu_branch),
+	.ex_take_branch(ex_take_branch),
 
 	// outputs
     .if_enable(if_enable),
