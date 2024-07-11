@@ -249,7 +249,7 @@ module is_stage (
 
     assign alloc_wr_mem = id_packet_out.wr_mem;
     assign alloc_value_in = id_packet_out.rs2_value;
-    assign alloc_value_in_valid = (maptable_packet_rs2.rob_tag_val == 0);
+    assign alloc_value_in_valid = (alloc_wr_mem && maptable_packet_rs2.rob_tag_val == 0);
     assign alloc_store_dep = maptable_packet_rs2.rob_tag_val;
 
 	DEST_REG_SEL dest_reg_select; 
