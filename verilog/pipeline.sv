@@ -512,6 +512,7 @@ mem_stage mem_stage_0 (// Inputs
 		.clock(clock),
 		.reset(reset),
 		.head_entry(rob_head_entry),
+		.head_ready(rob_head_ready),
 		.commit_rob_tag(rob_head),
 		// outputs
 		.cmt_packet_out(commit_packet)
