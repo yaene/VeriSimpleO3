@@ -264,6 +264,11 @@ module pipeline (
 //             Hazard Detection                 //
 //                                              //
 //////////////////////////////////////////////////
+logic is_branch; 
+logic alu_branch;
+assign is_branch = is_packet.cond_branch | is_packet.uncond_branch;
+assign alu_branch = rs_alu_out.instr.cond_branch 
+		| rs_alu_out.instr.uncond_branch;
 
 hazard_detection_unit hdu_0 (
 	// inputs
@@ -275,6 +280,9 @@ hazard_detection_unit hdu_0 (
 	.is_valid_inst(is_packet.valid_inst),
 	.commit_wr_mem(commit_packet.wr_mem),
 	.ex_rd_mem(lb_read_mem),
+	.is_branch(is_branch),
+	.alu_branch(alu_branch),
+
 	// outputs
     .if_enable(if_enable),
     .if_is_enable(if_is_enable),
