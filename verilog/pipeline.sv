@@ -325,6 +325,7 @@ hazard_detection_unit hdu_0 (
 		//inputs
 		.clock(clock),
 		.reset(reset),
+		.enable(rob_enable), // rob and maptable always update together
 		.commit(commit_packet.valid),
 		.rd_commit(commit_packet.reg_wr_idx_out),
 		.rob_entry_commit(commit_packet.rob_tag),
