@@ -45,29 +45,30 @@ module pipeline (
 	output logic [31:0] if_IR_out,
 	output logic        if_valid_inst_out,
 	
-	// Outputs from IF/ID Pipeline Register
-	output logic [`XLEN-1:0] if_id_NPC,
-	output logic [31:0] if_id_IR,
-	output logic        if_id_valid_inst,
+	// Outputs from IF/IS Pipeline Register
+	output logic [`XLEN-1:0] if_is_NPC_out,
+	output logic [31:0] if_is_IR_out,
+	output logic        if_is_valid_inst_out,
 	
+	output logic [`XLEN-1:0] rs_alu_NPC_out,
+	output logic [31:0] rs_alu_IR_out,
+	output logic        rs_alu_valid_inst_out,
 	
-	// todo: provide proper values for pipeline printing
-	// Outputs from ID/EX Pipeline Register
-	output logic [`XLEN-1:0] id_ex_NPC,
-	output logic [31:0] id_ex_IR,
-	output logic        id_ex_valid_inst,
+	output logic [`XLEN-1:0] rs_acu_NPC_out,
+	output logic [31:0] rs_acu_IR_out,
+	output logic        rs_acu_valid_inst_out,
 	
-	
-	// Outputs from EX/MEM Pipeline Register
-	output logic [`XLEN-1:0] ex_mem_NPC,
-	output logic [31:0] ex_mem_IR,
-	output logic        ex_mem_valid_inst,
-	
-	
-	// Outputs from MEM/WB Pipeline Register
-	output logic [`XLEN-1:0] mem_wb_NPC,
-	output logic [31:0] mem_wb_IR,
-	output logic        mem_wb_valid_inst
+	output logic [`XLEN-1:0] lb_NPC_out,
+	output logic [31:0] lb_IR_out,
+	output logic        lb_valid_inst_out,
+	 
+	output logic [`XLEN-1:0] ex_wr_NPC_out,
+	output logic [31:0] ex_wr_IR_out,
+	output logic        ex_wr_valid_inst_out,
+
+	output logic [`XLEN-1:0] commit_NPC_out,
+	output logic [31:0] commit_IR_out,
+	output logic        commit_valid_inst_out
 
 );
 
@@ -125,7 +126,7 @@ module pipeline (
 	logic rs_ld_st_full, rs_alu_full;
 	
 	// Outputs from EX-Stage
-	CDB_DATA alu_packet, acu_st_packet, lb_ex_packet;
+	EX_WR_PACKET alu_packet, acu_st_packet, lb_ex_packet;
 	LB_PACKET acu_ld_packet;
 	logic lb_read_mem, lb_full;
 	logic [`ROB_TAG_LEN-1:0] lb_rob_tag;
@@ -136,7 +137,7 @@ module pipeline (
 
 
 	// Outputs from EX/WR Pipeline Register
-	CDB_DATA acu_wr_packet, lb_wr_packet, alu_wr_packet;
+	EX_WR_PACKET acu_wr_packet, lb_wr_packet, alu_wr_packet;
 
 	// outputs from WR-Stage
 	CDB_DATA cdb_data;
@@ -162,8 +163,7 @@ module pipeline (
 	assign pipeline_commit_wr_idx = commit_packet.reg_wr_idx_out;
 	assign pipeline_commit_wr_data = commit_packet.data_out;
 	assign pipeline_commit_wr_en = commit_packet.reg_wr_en_out;
-	// todo: pass NPC through ROB for pipeline printing
-	// assign pipeline_commit_NPC = mem_wb_NPC;
+	assign pipeline_commit_NPC = commit_packet.NPC;
 	
 	assign proc2mem_command =
 	     (proc2Dmem_command == BUS_NONE) ? BUS_LOAD : proc2Dmem_command;
@@ -207,9 +207,9 @@ module pipeline (
 //                                              //
 //////////////////////////////////////////////////
 
-	assign if_id_NPC        = if_is_packet.NPC;
-	assign if_id_IR         = if_is_packet.inst;
-	assign if_id_valid_inst = if_is_packet.valid;
+	assign if_is_NPC        = if_is_packet.NPC;
+	assign if_is_IR         = if_is_packet.inst;
+	assign if_is_valid_inst = if_is_packet.valid;
 	// synopsys sync_set_reset "reset"
 	always_ff @(posedge clock) begin
 		if (reset | if_is_flush) begin 
@@ -234,6 +234,8 @@ module pipeline (
 		.clock(clock),
 		.reset(reset),
 		.alloc_enable(rob_enable),
+		.inst(if_is_packet.inst),
+		.NPC(if_is_packet.NPC),
 		.alloc_wr_mem(rob_alloc_wr_mem),
 		.alloc_value_in(rob_alloc_value_in),
 		.alloc_store_dep(rob_alloc_store_dep_inst),
@@ -315,6 +317,9 @@ hazard_detection_unit hdu_0 (
 //                  IS-Stage                    //
 //                                              //
 //////////////////////////////////////////////////
+	assign if_is_NPC_out        = if_is_packet.NPC;
+	assign if_is_IR_out         = if_is_packet.inst;
+	assign if_is_valid_inst_out = if_is_packet.valid;
 	
 	maptable maptable_0 (
 		//inputs
@@ -406,14 +411,22 @@ ReservationStation #(.NO_WAIT_RS2(0)) alu_rs  (
 //                                              //
 //////////////////////////////////////////////////
 
+	assign rs_alu_NPC_out        = rs_alu_out.instr.NPC;
+	assign rs_alu_IR_out         = rs_alu_out.instr.inst;
+	assign rs_alu_valid_inst_out = rs_alu_out.instr.valid;
+
 alu_execution_unit alu_0 (
 	// inputs
 	.ready_inst_entry(rs_alu_out),
 	// outputs
-	.alu_cdb_output(alu_packet),
+	.alu_output(alu_packet),
 	.take_branch(ex_take_branch),
 	.branch_target_PC(ex_target_pc)
 );
+
+	assign rs_acu_NPC_out        = rs_ld_st_out.instr.NPC;
+	assign rs_acu_IR_out         = rs_ld_st_out.instr.inst;
+	assign rs_acu_valid_inst_out = rs_ld_st_out.instr.valid;
 
 address_calculation_unit acu_0 (
 	// inputs
@@ -422,6 +435,10 @@ address_calculation_unit acu_0 (
 	.store_result(acu_st_packet),
 	.load_buffer_packet(acu_ld_packet)
 );
+
+	assign lb_NPC_out        = lb_packet.NPC;
+	assign lb_IR_out         = lb_packet.inst;
+	assign lb_valid_inst_out = lb_packet.valid;
 
 load_buffer load_buffer_0 (
 	// inputs
@@ -488,6 +505,7 @@ mem_stage mem_stage_0 (// Inputs
 //                  WR-Stage                    //
 //                                              //
 //////////////////////////////////////////////////
+	assign ex_wr_valid_inst_out = cdb_data.valid;
 
 	wr_stage wr_stage_0 (
 		//inputs
@@ -496,8 +514,9 @@ mem_stage mem_stage_0 (// Inputs
 		.ex_packet_in({acu_wr_packet,alu_wr_packet, lb_wr_packet}),
 		// outputs
 		.cdb(cdb_data),
-		// todo: use written output in hazard detection
-		.written({acu_written, alu_written, load_written})
+		.written({acu_written, alu_written, load_written}),
+		.wr_inst(ex_wr_IR_out),
+		.wr_NPC(ex_wr_NPC_out)
 	);
 
 //////////////////////////////////////////////////
@@ -506,6 +525,9 @@ mem_stage mem_stage_0 (// Inputs
 //                                              //
 //////////////////////////////////////////////////
 
+	assign commit_NPC_out        = commit_packet.NPC;
+	assign commit_IR_out         = commit_packet.inst;
+	assign commit_valid_inst_out = cdb_data.valid;
 
 	commit_stage commit_stage_0 (
 		// inputs

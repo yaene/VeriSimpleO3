@@ -4,12 +4,14 @@
 
 `timescale 1ns/100ps
 
-`define EMPTY_ROB_ENTRY '{`FALSE, `FALSE, `ZERO_REG, `XLEN'b0, `XLEN'b0, `ROB_TAG_LEN'b0, 3'b0, `FALSE, `FALSE}
+`define EMPTY_ROB_ENTRY '{`FALSE, 31'b0, `XLEN'b0, `FALSE, `ZERO_REG, `XLEN'b0, `XLEN'b0, `ROB_TAG_LEN'b0, 3'b0, `FALSE, `FALSE}
 
 module rob (input clock,
             input reset,
 
             input alloc_enable,                       // should a new slot be allocated
+            input INST inst,
+            input [`XLEN-1:0] NPC,
             input alloc_wr_mem,                       // is new instruction a store?
             input [`XLEN-1:0] alloc_value_in,         // value to store if available during store issue
             input [`ROB_TAG_LEN-1:0] alloc_store_dep, // else ROB providing value of store
@@ -85,7 +87,7 @@ module rob (input clock,
         
         // allocate ROB entry
         if (allocate_tail) begin
-            rob[tail] <= '{`TRUE, alloc_wr_mem, dest_reg,
+            rob[tail] <= '{`TRUE, NPC, inst, alloc_wr_mem, dest_reg,
             `XLEN'b0, alloc_value, alloc_store_dep, alloc_mem_size,
             alloc_value_ready, ~alloc_wr_mem};
         end

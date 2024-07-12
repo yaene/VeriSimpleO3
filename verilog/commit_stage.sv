@@ -18,6 +18,8 @@ module commit_stage(
 
 
   assign cmt_packet_out.valid = head_entry.valid && head_ready;
+  assign cmt_packet_out.NPC = head_entry.NPC;
+  assign cmt_packet_out.inst = head_entry.inst;
   assign cmt_packet_out.data_out = head_entry.value;
   assign cmt_packet_out.mem_size = head_entry.mem_size;
 

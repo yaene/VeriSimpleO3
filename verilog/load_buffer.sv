@@ -3,7 +3,7 @@
 
 `timescale 1ns/100ps
 
-`define EMPTY_LB_PACKET '{`FALSE, `XLEN'b0, `ROB_TAG_LEN'b0, 3'b0}
+`define EMPTY_LB_PACKET '{`FALSE, `XLEN'b0, `XLEN'b0, `XLEN'b0, `ROB_TAG_LEN'b0, 3'b0}
 
 module load_buffer (
     input clock,

@@ -105,7 +105,7 @@ endmodule
 module alu_execution_unit(
     input INSTR_READY_ENTRY ready_inst_entry, // output ready instruction entry from RS
 
-    output CDB_DATA alu_cdb_output, // CDB data output from ALU execution unit
+    output EX_WR_PACKET alu_output, // CDB data output from ALU execution unit
     output logic take_branch, // indicates whether the branch will be taken
     output logic [`XLEN-1:0] branch_target_PC // targeted branch PC when taking branch
 );
@@ -141,6 +141,9 @@ module alu_execution_unit(
         .cond(brcond_result)
     );
 
+    assign alu_output.inst = ready_inst_entry.instr.inst;
+    assign alu_output.NPC = ready_inst_entry.instr.NPC;
+
      // ultimate "take branch" signal:
      // unconditional, or conditional and the condition is true
     assign take_branch = ready_inst_entry.instr.uncond_branch
@@ -148,20 +151,20 @@ module alu_execution_unit(
     always_comb begin
         if (take_branch) begin
             branch_target_PC = result;
-            alu_cdb_output.valid = 1;
-            alu_cdb_output.value = ready_inst_entry.instr.NPC;
-            alu_cdb_output.rob_tag = ready_inst_entry.rd_tag;
+            alu_output.valid = 1;
+            alu_output.value = ready_inst_entry.instr.NPC;
+            alu_output.rob_tag = ready_inst_entry.rd_tag;
         end
         else if (ready_inst_entry.ready && (~ready_inst_entry.instr.uncond_branch) && (~ready_inst_entry.instr.cond_branch)) begin
             branch_target_PC = 0; //no matter what, since not take_branch
-            alu_cdb_output.valid = 1;
-            alu_cdb_output.value = result;
-            alu_cdb_output.rob_tag = ready_inst_entry.rd_tag;
+            alu_output.valid = 1;
+            alu_output.value = result;
+            alu_output.rob_tag = ready_inst_entry.rd_tag;
         end
         else begin // not take branch, but branch instructions
             branch_target_PC = 0;
-            alu_cdb_output.valid = 1;
-            alu_cdb_output.rob_tag = ready_inst_entry.rd_tag;
+            alu_output.valid = 1;
+            alu_output.rob_tag = ready_inst_entry.rd_tag;
         end
 
     end
@@ -170,7 +173,7 @@ endmodule // alu
 module address_calculation_unit(
     input INSTR_READY_ENTRY ready_inst_entry, // output ready instruction entry from RS
 
-    output CDB_DATA store_result, // output address result for writing, for store instruction
+    output EX_WR_PACKET store_result, // output address result for writing, for store instruction
     output LB_PACKET load_buffer_packet // output packet for load buffer usage
 );
     logic [`XLEN-1:0] opa;
@@ -196,6 +199,11 @@ module address_calculation_unit(
         // Output
         .result(result)
     );
+
+    assign store_result.NPC = ready_inst_entry.instr.NPC;
+    assign load_buffer_packet.NPC = ready_inst_entry.instr.NPC;
+    assign store_result.inst = ready_inst_entry.instr.inst;
+    assign load_buffer_packet.inst = ready_inst_entry.instr.inst;
 
     always_comb begin
         load_buffer_packet.address = result;

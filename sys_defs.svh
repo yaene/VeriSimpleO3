@@ -249,6 +249,8 @@ typedef union packed {
 
 typedef struct packed {
 	logic valid; // needed to distinguish empty entries
+	logic [`XLEN-1:0] NPC; 
+	INST inst; 
 	logic wr_mem; // is a store
 	logic [4:0] dest_reg; // destination register
 	logic [`XLEN-1:0] dest_addr; // destination address (store)
@@ -276,6 +278,8 @@ typedef struct packed {
 
 typedef struct packed{
     logic valid;
+	logic [`XLEN-1:0] NPC;
+	INST inst;
     logic [`XLEN-1:0] address;
     logic [`ROB_TAG_LEN-1:0] rd_tag;
     logic [2:0] mem_size;
@@ -326,16 +330,12 @@ typedef struct packed {
 } ID_EX_PACKET;
 
 typedef struct packed {
-	logic [`XLEN-1:0] alu_result; // alu_result
-	logic [`XLEN-1:0] NPC; //pc + 4
-	logic             take_branch; // is this a taken branch?
-	//pass throughs from decode stage
-	logic [`XLEN-1:0] rs2_value;
-	logic             rd_mem, wr_mem;
-	logic [4:0]       dest_reg_idx;
-	logic             halt, illegal, csr_op, valid;
-	logic [2:0]       mem_size; // byte, half-word or word
-} EX_MEM_PACKET;
+	logic valid;
+	logic [`XLEN-1:0] NPC;
+	INST inst;
+    logic [`ROB_TAG_LEN-1:0] rob_tag; // identifies instruction that produced value
+    logic [`XLEN-1:0] value;
+} EX_WR_PACKET;
 
 typedef struct packed {
 	logic valid;
@@ -353,6 +353,8 @@ typedef struct packed {
 
 typedef struct packed {
 	logic valid;
+	logic [`XLEN-1:0] NPC;
+	INST inst;
 	logic [`XLEN-1:0] data_out;
 	logic [2:0] mem_size;
 	logic wr_mem;
