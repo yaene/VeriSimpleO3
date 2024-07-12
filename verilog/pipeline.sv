@@ -154,11 +154,9 @@ module pipeline (
 	COMMIT_PACKET commit_packet;	
 
 	assign pipeline_completed_insts = {3'b0, commit_packet.valid};
-	// todo: handle exceptions by passing them through ROB
-	// assign pipeline_error_status =  mem_wb_illegal             ? ILLEGAL_INST :
-	//                                 mem_wb_halt                ? HALTED_ON_WFI :
-	//                                 (mem2proc_response==4'h0)  ? LOAD_ACCESS_FAULT :
-	//                                 NO_ERROR;
+	assign pipeline_error_status =  
+		commit_packet.inst == `WFI ? HALTED_ON_WFI :
+									 NO_ERROR;
 	
 	assign pipeline_commit_wr_idx = commit_packet.reg_wr_idx_out;
 	assign pipeline_commit_wr_data = commit_packet.data_out;
