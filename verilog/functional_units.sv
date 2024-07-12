@@ -148,7 +148,9 @@ module alu_execution_unit(
     always_comb begin
         if (take_branch) begin
             branch_target_PC = result;
-            alu_cdb_output = '0;
+            alu_cdb_output.valid = 1;
+            alu_cdb_output.value = ready_inst_entry.instr.NPC;
+            alu_cdb_output.rob_tag = ready_inst_entry.rd_tag;
         end
         else if (ready_inst_entry.ready && (~ready_inst_entry.instr.uncond_branch) && (~ready_inst_entry.instr.cond_branch)) begin
             branch_target_PC = 0; //no matter what, since not take_branch
@@ -158,7 +160,8 @@ module alu_execution_unit(
         end
         else begin // not take branch, but branch instructions
             branch_target_PC = 0;
-            alu_cdb_output = '0;
+            alu_cdb_output.valid = 1;
+            alu_cdb_output.rob_tag = ready_inst_entry.rd_tag;
         end
 
     end
