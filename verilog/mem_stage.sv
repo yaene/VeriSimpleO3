@@ -31,7 +31,7 @@ module mem_stage(
 	
 	output mem_busy,					//to load buffer
 	
-	output CDB_DATA lb_ex_packet_out,
+	output EX_WR_PACKET lb_ex_packet_out,
 	output logic [1:0] proc2Dmem_command,
 	output MEM_SIZE proc2Dmem_size,
 	output logic [`XLEN-1:0] proc2Dmem_addr,      // Address sent to data-memory
@@ -41,6 +41,8 @@ module mem_stage(
 	logic [`XLEN-1:0] mem_result_out;
 	
 	assign lb_ex_packet_out.valid = lb_packet_in.valid;
+	assign lb_ex_packet_out.NPC = lb_packet_in.NPC;
+	assign lb_ex_packet_out.inst = lb_packet_in.inst;
 	assign lb_ex_packet_out.rob_tag = lb_packet_in.rd_tag;
 	assign lb_ex_packet_out.value = mem_result_out;
 
