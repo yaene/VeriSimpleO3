@@ -156,6 +156,7 @@ module rob (input clock,
         end
     end
 
+
     `ifdef DEBUG
     assign rob0 = rob[1];
     assign rob1 = rob[2];
@@ -167,8 +168,12 @@ module rob (input clock,
     assign head_ready = rob[head].value_ready && rob[head].address_ready;
     assign full       = rob[head].valid && tail == head && !head_ready;
     assign alloc_slot = tail;
-    assign read_value_rs1 = rob[read_rob_tag_rs1].value;
-    assign read_value_rs2 = rob[read_rob_tag_rs2].value;
+    // values being written right now are considered ready in rob, forward from cdb
+    assign read_value_rs1 = (cdb_data.valid && cdb_data.rob_tag == read_rob_tag_rs1) 
+                ? cdb_data.value : rob[read_rob_tag_rs1].value;
+    assign read_value_rs2 = (cdb_data.valid && cdb_data.rob_tag == read_rob_tag_rs2) 
+                ? cdb_data.value : rob[read_rob_tag_rs2].value;
+
     assign head_entry = rob[head];
     // we allow for overwriting of just commited head by new entry
     assign clear_head    = head_ready && !(alloc_enable && tail == head);
