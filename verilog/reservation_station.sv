@@ -35,7 +35,7 @@ module ReservationStation #(parameter NO_WAIT_RS2 = 0)(
         found_ready_instr = 0;
         ready_inst_index = 0;
         for (integer i = 0; i < `RS_DEPTH; i = i + 1) begin
-            if (instr_ready_table[i].valid && instr_ready_table[i].ready && (instr_ready_table[i].birthday < oldest_birthday)) begin
+            if (instr_ready_table[i].valid && instr_ready_table[i].ready && (instr_ready_table[i].birthday <= oldest_birthday)) begin
                 oldest_birthday = instr_ready_table[i].birthday;
                 ready_inst_index = i;
                 found_ready_instr = 1;                    
