@@ -49,7 +49,7 @@ module mem_stage(
 	// Determine the command that must be sent to mem
 	assign proc2Dmem_command =
 	                        (cmt_packet_in.wr_mem & cmt_packet_in.valid) ? BUS_STORE :
-							(read_mem) ? BUS_LOAD :
+							(read_mem & lb_packet_in.valid) ? BUS_LOAD :
 	                        BUS_NONE;
 
 	assign proc2Dmem_size = proc2Dmem_command == BUS_LOAD 
@@ -61,7 +61,7 @@ module mem_stage(
 	// The memory address is calculated by the ALU
 	assign proc2Dmem_data = cmt_packet_in.data_out;
 
-	assign proc2Dmem_addr = cmt_packet_in.mem_address;	
+	assign proc2Dmem_addr = (proc2Dmem_command == BUS_LOAD) ? lb_packet_in.address : cmt_packet_in.mem_address;	
 	// Assign the result-out for next stage
 	always_comb begin
 		mem_result_out = cmt_packet_in.data_out;
