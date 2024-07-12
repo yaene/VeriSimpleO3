@@ -71,8 +71,10 @@ module ReservationStation #(parameter NO_WAIT_RS2 = 0)(
                 instr_ready_table[free_slot].rd_tag <= alloc_slot;
                 instr_ready_table[free_slot].rs1_value <= id_packet_out.rs1_value; // value from regfile
                 instr_ready_table[free_slot].rs2_value <= id_packet_out.rs2_value; // value from regfile
-                instr_ready_table[free_slot].rs1_ready <= (maptable_packet_rs1.rob_tag_val == 0) ? 1: maptable_packet_rs1.rob_tag_ready;
-                instr_ready_table[free_slot].rs2_ready <= (maptable_packet_rs2.rob_tag_val == 0) ? 1: maptable_packet_rs2.rob_tag_ready;
+                instr_ready_table[free_slot].rs1_ready <= (id_packet_out.opa_select != OPA_IS_RS1 && !id_packet_out.cond_branch) 
+                    || ((maptable_packet_rs1.rob_tag_val == 0) ? 1: maptable_packet_rs1.rob_tag_ready);
+                instr_ready_table[free_slot].rs2_ready <= (id_packet_out.opb_select != OPB_IS_RS2 && !id_packet_out.cond_branch)
+                    || (maptable_packet_rs2.rob_tag_val == 0) ? 1: maptable_packet_rs2.rob_tag_ready;
                 instr_ready_table[free_slot].birthday <= max_birthday; 
                 instr_ready_table[free_slot].instr <= id_packet_out;
 
