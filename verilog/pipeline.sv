@@ -511,7 +511,7 @@ mem_stage mem_stage_0 (// Inputs
 		//inputs
 		.clock(clock),
 		.reset(reset),
-		.ex_packet_in({acu_wr_packet,alu_wr_packet, lb_wr_packet}),
+		.ex_packet_in({acu_wr_packet,alu_wr_packet,lb_wr_packet}),
 		// outputs
 		.cdb(cdb_data),
 		.written({acu_written, alu_written, load_written}),

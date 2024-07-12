@@ -149,13 +149,17 @@ module alu_execution_unit(
     assign take_branch = ready_inst_entry.instr.uncond_branch
                                   | (ready_inst_entry.instr.cond_branch & brcond_result);
     always_comb begin
-        if (take_branch) begin
+        if (~ready_inst_entry.ready) begin
+            alu_output = '0;
+            branch_target_PC = 0;
+        end
+        else if (take_branch) begin
             branch_target_PC = result;
             alu_output.valid = 1;
             alu_output.value = ready_inst_entry.instr.NPC;
             alu_output.rob_tag = ready_inst_entry.rd_tag;
         end
-        else if (ready_inst_entry.ready && (~ready_inst_entry.instr.uncond_branch) && (~ready_inst_entry.instr.cond_branch)) begin
+        else if (~ready_inst_entry.instr.uncond_branch && (~ready_inst_entry.instr.cond_branch)) begin
             branch_target_PC = 0; //no matter what, since not take_branch
             alu_output.valid = 1;
             alu_output.value = result;
@@ -164,6 +168,7 @@ module alu_execution_unit(
         else begin // not take branch, but branch instructions
             branch_target_PC = 0;
             alu_output.valid = 1;
+            alu_output.value = 0;
             alu_output.rob_tag = ready_inst_entry.rd_tag;
         end
 
