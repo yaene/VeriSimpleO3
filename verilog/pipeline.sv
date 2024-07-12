@@ -527,7 +527,7 @@ mem_stage mem_stage_0 (// Inputs
 
 	assign commit_NPC_out        = commit_packet.NPC;
 	assign commit_IR_out         = commit_packet.inst;
-	assign commit_valid_inst_out = cdb_data.valid;
+	assign commit_valid_inst_out = commit_packet.valid;
 
 	commit_stage commit_stage_0 (
 		// inputs
