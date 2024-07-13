@@ -4,12 +4,14 @@
 
 `timescale 1ns/100ps
 
-`define EMPTY_ROB_ENTRY '{`FALSE, `FALSE, `ZERO_REG, `XLEN'b0, `XLEN'b0, `ROB_TAG_LEN'b0, 3'b0, `FALSE, `FALSE}
+`define EMPTY_ROB_ENTRY '{`FALSE, 31'b0, `XLEN'b0, `FALSE, `ZERO_REG, `XLEN'b0, `XLEN'b0, `ROB_TAG_LEN'b0, 3'b0, `FALSE, `FALSE}
 
 module rob (input clock,
             input reset,
 
             input alloc_enable,                       // should a new slot be allocated
+            input INST inst,
+            input [`XLEN-1:0] NPC,
             input alloc_wr_mem,                       // is new instruction a store?
             input [`XLEN-1:0] alloc_value_in,         // value to store if available during store issue
             input [`ROB_TAG_LEN-1:0] alloc_store_dep, // else ROB providing value of store
@@ -33,6 +35,7 @@ module rob (input clock,
             output [`ROB_TAG_LEN-1:0] wr_rob_tag,                        // the tag of the instruction writing back (for map table update)
             output wr_valid,                          // whether there is an instruction writing back
             output ROB_ENTRY head_entry,              // the entry of the next instn to commit
+            output logic [`ROB_TAG_LEN-1:0] head,
             output head_ready
             `ifdef DEBUG
             ,output ROB_ENTRY rob0,
@@ -43,7 +46,7 @@ module rob (input clock,
             );
     parameter ROB_SIZE = 4;
     
-    logic [`ROB_TAG_LEN-1:0] head, next_head;
+    logic [`ROB_TAG_LEN-1:0] next_head;
     logic [`ROB_TAG_LEN-1:0] tail, next_tail;
     logic clear_head, allocate_tail;
     logic [`XLEN-1:0] alloc_value;
@@ -84,7 +87,7 @@ module rob (input clock,
         
         // allocate ROB entry
         if (allocate_tail) begin
-            rob[tail] <= '{`TRUE, alloc_wr_mem, dest_reg,
+            rob[tail] <= '{`TRUE, NPC, inst, alloc_wr_mem, dest_reg,
             `XLEN'b0, alloc_value, alloc_store_dep, alloc_mem_size,
             alloc_value_ready, ~alloc_wr_mem};
         end
@@ -153,6 +156,7 @@ module rob (input clock,
         end
     end
 
+
     `ifdef DEBUG
     assign rob0 = rob[1];
     assign rob1 = rob[2];
@@ -164,8 +168,12 @@ module rob (input clock,
     assign head_ready = rob[head].value_ready && rob[head].address_ready;
     assign full       = rob[head].valid && tail == head && !head_ready;
     assign alloc_slot = tail;
-    assign read_value_rs1 = rob[read_rob_tag_rs1].value;
-    assign read_value_rs2 = rob[read_rob_tag_rs2].value;
+    // values being written right now are considered ready in rob, forward from cdb
+    assign read_value_rs1 = (cdb_data.valid && cdb_data.rob_tag == read_rob_tag_rs1) 
+                ? cdb_data.value : rob[read_rob_tag_rs1].value;
+    assign read_value_rs2 = (cdb_data.valid && cdb_data.rob_tag == read_rob_tag_rs2) 
+                ? cdb_data.value : rob[read_rob_tag_rs2].value;
+
     assign head_entry = rob[head];
     // we allow for overwriting of just commited head by new entry
     assign clear_head    = head_ready && !(alloc_enable && tail == head);

@@ -221,28 +221,21 @@ module is_stage (
     input MAPTABLE_PACKET maptable_packet_rs1,
     input MAPTABLE_PACKET maptable_packet_rs2,
 	// input from ROB
-    input rob_full,
 	input [`XLEN-1:0] rs1_read_rob_value,
 	input [`XLEN-1:0] rs2_read_rob_value, 
-	// input from RS
-    input rs_ld_st_full,
-	input rs_alu_full,
 	
+	// output to hazard detection
+	output is_ld_st_inst,
 	// output to RS + ROB + Maptable
 	output ID_EX_PACKET id_packet_out, // rob.dest_reg, rs, maptable.inst
-	output rs_ld_st_enable,
-	output rs_alu_enable,
     // output to rob
-    output alloc_enable,                       // should a new slot be allocated
     output alloc_wr_mem,                       // is new instruction a store?
     output [`XLEN-1:0] alloc_value_in,         // value to store if available during store issue
     output [`ROB_TAG_LEN-1:0] alloc_store_dep, // else ROB providing value of store
     output alloc_value_in_valid,               // whether store value is available at issue
 	output [2:0] alloc_mem_size,
     output [`ROB_TAG_LEN-1:0] rs1_rob_tag,
-	output [`ROB_TAG_LEN-1:0] rs2_rob_tag,
-	// output to IF stage
-	output stall_if
+	output [`ROB_TAG_LEN-1:0] rs2_rob_tag
 );
 
 	logic [`XLEN-1:0] regf_rs1_value;
@@ -252,14 +245,11 @@ module is_stage (
     assign id_packet_out.NPC  = if_id_packet_in.NPC;
     assign id_packet_out.PC   = if_id_packet_in.PC;
 
-	assign rs_ld_st_enable = !rob_full && ((id_packet_out.rd_mem || id_packet_out.wr_mem) && !rs_ld_st_full);
-	assign rs_alu_enable = !rob_full && !id_packet_out.rd_mem && !id_packet_out.wr_mem && !rs_alu_full;
-    assign stall_if = rob_full | !(rs_alu_enable | rs_ld_st_enable);
+	assign is_ld_st_inst = id_packet_out.rd_mem || id_packet_out.wr_mem;
 
-    assign alloc_enable = rs_alu_enable || rs_ld_st_enable;
     assign alloc_wr_mem = id_packet_out.wr_mem;
     assign alloc_value_in = id_packet_out.rs2_value;
-    assign alloc_value_in_valid = (maptable_packet_rs2.rob_tag_val == 0);
+    assign alloc_value_in_valid = (alloc_wr_mem && maptable_packet_rs2.rob_tag_val == 0);
     assign alloc_store_dep = maptable_packet_rs2.rob_tag_val;
 
 	DEST_REG_SEL dest_reg_select; 
