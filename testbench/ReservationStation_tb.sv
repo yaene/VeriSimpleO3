@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-module testbench;
+module rs_testbench;
   logic clk;
   logic reset;
   CDB_DATA cdb;

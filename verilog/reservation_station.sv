@@ -35,7 +35,7 @@ module ReservationStation #(parameter NO_WAIT_RS2 = 0)(
         found_ready_instr = 0;
         ready_inst_index = 0;
         for (integer i = 0; i < `RS_DEPTH; i = i + 1) begin
-            if (instr_ready_table[i].valid && instr_ready_table[i].ready && (instr_ready_table[i].birthday < oldest_birthday)) begin
+            if (instr_ready_table[i].valid && instr_ready_table[i].ready && (instr_ready_table[i].birthday <= oldest_birthday)) begin
                 oldest_birthday = instr_ready_table[i].birthday;
                 ready_inst_index = i;
                 found_ready_instr = 1;                    
@@ -61,11 +61,7 @@ module ReservationStation #(parameter NO_WAIT_RS2 = 0)(
     always_ff @(posedge clk) begin
         if (reset) begin
             for (integer i = 0; i < `RS_DEPTH; i = i + 1) begin
-                instr_ready_table[i].valid <= 0;
-                instr_ready_table[i].ready <= 0;
-                instr_ready_table[i].rs1_ready <= 0;
-                instr_ready_table[i].rs2_ready <= 0;
-                instr_ready_table[i].birthday <= 0;
+                instr_ready_table[i] <= '0;
             end
         end
         else if (alloc_enable && !rs_full) begin
@@ -75,8 +71,10 @@ module ReservationStation #(parameter NO_WAIT_RS2 = 0)(
                 instr_ready_table[free_slot].rd_tag <= alloc_slot;
                 instr_ready_table[free_slot].rs1_value <= id_packet_out.rs1_value; // value from regfile
                 instr_ready_table[free_slot].rs2_value <= id_packet_out.rs2_value; // value from regfile
-                instr_ready_table[free_slot].rs1_ready <= (maptable_packet_rs1.rob_tag_val == 0) ? 1: maptable_packet_rs1.rob_tag_ready;
-                instr_ready_table[free_slot].rs2_ready <= (maptable_packet_rs2.rob_tag_val == 0) ? 1: maptable_packet_rs2.rob_tag_ready;
+                instr_ready_table[free_slot].rs1_ready <= (id_packet_out.opa_select != OPA_IS_RS1 && !id_packet_out.cond_branch) 
+                    || ((maptable_packet_rs1.rob_tag_val == 0) ? 1: maptable_packet_rs1.rob_tag_ready);
+                instr_ready_table[free_slot].rs2_ready <= (id_packet_out.opb_select != OPB_IS_RS2 && !id_packet_out.cond_branch)
+                    || (maptable_packet_rs2.rob_tag_val == 0) ? 1: maptable_packet_rs2.rob_tag_ready;
                 instr_ready_table[free_slot].birthday <= max_birthday; 
                 instr_ready_table[free_slot].instr <= id_packet_out;
 
@@ -97,7 +95,7 @@ module ReservationStation #(parameter NO_WAIT_RS2 = 0)(
         
         // ready instruction was processed last cycle unless stalled
         if (found_ready_instr && !exec_stall) begin
-            instr_ready_table[ready_inst_index].valid <= 0;
+            instr_ready_table[ready_inst_index] <= '0;
         end
     end
 endmodule

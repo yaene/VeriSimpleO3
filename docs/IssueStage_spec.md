@@ -2,7 +2,7 @@
 
 ## Module: issue_stage
 ### Interface
-```
+```verilog
 module is_stage (         
 	input clock,              // system clock
 	input reset,              // system reset
@@ -16,28 +16,21 @@ module is_stage (
     input MAPTABLE_PACKET maptable_packet_rs1,
     input MAPTABLE_PACKET maptable_packet_rs2,
 	// input from ROB
-    input rob_full,
 	input [`XLEN-1:0] rs1_read_rob_value,
 	input [`XLEN-1:0] rs2_read_rob_value, 
-	// input from RS
-    input rs_ld_st_full,
-	input rs_alu_full,
 	
+	// output to hazard detection
+	output is_ld_st_inst,
 	// output to RS + ROB + Maptable
 	output ID_EX_PACKET id_packet_out, // rob.dest_reg, rs, maptable.inst
-	output rs_ld_st_enable,
-	output rs_alu_enable,
     // output to rob
-    output alloc_enable,                       // should a new slot be allocated
     output alloc_wr_mem,                       // is new instruction a store?
     output [`XLEN-1:0] alloc_value_in,         // value to store if available during store issue
     output [`ROB_TAG_LEN-1:0] alloc_store_dep, // else ROB providing value of store
     output alloc_value_in_valid,               // whether store value is available at issue
 	output [2:0] alloc_mem_size,
     output [`ROB_TAG_LEN-1:0] rs1_rob_tag,
-	output [`ROB_TAG_LEN-1:0] rs2_rob_tag,
-	// output to IF stage
-	output stall_if
+	output [`ROB_TAG_LEN-1:0] rs2_rob_tag
 );
 ```
 
