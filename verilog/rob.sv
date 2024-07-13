@@ -143,7 +143,8 @@ module rob (input clock,
         if (rob[load_rob_tag].valid && (load_rob_tag != head)) begin
             tag_tracking = (load_rob_tag == 1) ? ROB_SIZE  : load_rob_tag - 1;
             for (int i = 1; i < ROB_SIZE; i++) begin
-                if (rob[tag_tracking].wr_mem && rob[tag_tracking].address_ready && (rob[tag_tracking].dest_addr == load_address)) begin
+                if (rob[tag_tracking].wr_mem && 
+                (!rob[tag_tracking].address_ready || (rob[tag_tracking].address_ready && (rob[tag_tracking].dest_addr == load_address)))) begin
                     pending_stores = `TRUE;
                 end
                 if (tag_tracking != head) begin
