@@ -7,6 +7,7 @@ module maptable(
   // Inputs
   input logic clock,
   input logic reset,
+  input enable,
   input logic commit,
   input logic [4:0] rd_commit,
   input logic [`ROB_TAG_LEN-1:0] rob_entry_commit,
@@ -68,7 +69,7 @@ module maptable(
       maptable[rd_commit] = 0;
       ready_tag_table[rd_commit] = 0;
     end
-    if (rd != `ZERO_REG) begin
+    if (enable && rd != `ZERO_REG) begin
       maptable[rd] = rob_entry_in;
       ready_tag_table[rd] = 0;
     end

@@ -31,19 +31,25 @@ module mem_stage(
 	
 	output mem_busy,					//to load buffer
 	
-	output logic [`XLEN-1:0] mem_result_out,      // outgoing instruction result (to MEM/WB)
+	output EX_WR_PACKET lb_ex_packet_out,
 	output logic [1:0] proc2Dmem_command,
 	output MEM_SIZE proc2Dmem_size,
 	output logic [`XLEN-1:0] proc2Dmem_addr,      // Address sent to data-memory
 	output logic [`XLEN-1:0] proc2Dmem_data      // Data sent to data-memory
 );
 
-
+	logic [`XLEN-1:0] mem_result_out;
+	
+	assign lb_ex_packet_out.valid = lb_packet_in.valid;
+	assign lb_ex_packet_out.NPC = lb_packet_in.NPC;
+	assign lb_ex_packet_out.inst = lb_packet_in.inst;
+	assign lb_ex_packet_out.rob_tag = lb_packet_in.rd_tag;
+	assign lb_ex_packet_out.value = mem_result_out;
 
 	// Determine the command that must be sent to mem
 	assign proc2Dmem_command =
 	                        (cmt_packet_in.wr_mem & cmt_packet_in.valid) ? BUS_STORE :
-							(read_mem) ? BUS_LOAD :
+							(read_mem & lb_packet_in.valid) ? BUS_LOAD :
 	                        BUS_NONE;
 
 	assign proc2Dmem_size = proc2Dmem_command == BUS_LOAD 
@@ -55,7 +61,7 @@ module mem_stage(
 	// The memory address is calculated by the ALU
 	assign proc2Dmem_data = cmt_packet_in.data_out;
 
-	assign proc2Dmem_addr = cmt_packet_in.mem_address;	
+	assign proc2Dmem_addr = (proc2Dmem_command == BUS_LOAD) ? lb_packet_in.address : cmt_packet_in.mem_address;	
 	// Assign the result-out for next stage
 	always_comb begin
 		mem_result_out = cmt_packet_in.data_out;

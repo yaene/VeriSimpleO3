@@ -50,18 +50,24 @@ module testbench;
 	logic [`XLEN-1:0] if_NPC_out;
 	logic [31:0] if_IR_out;
 	logic        if_valid_inst_out;
-	logic [`XLEN-1:0] if_id_NPC;
-	logic [31:0] if_id_IR;
-	logic        if_id_valid_inst;
-	logic [`XLEN-1:0] id_ex_NPC;
-	logic [31:0] id_ex_IR;
-	logic        id_ex_valid_inst;
-	logic [`XLEN-1:0] ex_mem_NPC;
-	logic [31:0] ex_mem_IR;
-	logic        ex_mem_valid_inst;
-	logic [`XLEN-1:0] mem_wb_NPC;
-	logic [31:0] mem_wb_IR;
-	logic        mem_wb_valid_inst;
+	logic [`XLEN-1:0] if_is_NPC;
+	logic [31:0] if_is_IR;
+	logic        if_is_valid_inst;
+	logic [`XLEN-1:0] rs_alu_NPC;
+	logic [31:0] rs_alu_IR;
+	logic        rs_alu_valid_inst;
+	logic [`XLEN-1:0] rs_acu_NPC;
+	logic [31:0] rs_acu_IR;
+	logic        rs_acu_valid_inst;
+	logic [`XLEN-1:0] lb_NPC;
+	logic [31:0] lb_IR;
+	logic        lb_valid_inst;
+	logic [`XLEN-1:0] ex_wr_NPC;
+	logic [31:0] ex_wr_IR;
+	logic        ex_wr_valid_inst;
+	logic [`XLEN-1:0] commit_NPC;
+	logic [31:0] commit_IR;
+	logic        commit_valid_inst;
 
     //counter used for when pipeline infinite loops, forces termination
     logic [63:0] debug_counter;
@@ -87,22 +93,28 @@ module testbench;
 		.pipeline_commit_wr_idx(pipeline_commit_wr_idx),
 		.pipeline_commit_wr_en(pipeline_commit_wr_en),
 		.pipeline_commit_NPC(pipeline_commit_NPC),
-		
+
 		.if_NPC_out(if_NPC_out),
 		.if_IR_out(if_IR_out),
 		.if_valid_inst_out(if_valid_inst_out),
-		.if_id_NPC(if_id_NPC),
-		.if_id_IR(if_id_IR),
-		.if_id_valid_inst(if_id_valid_inst),
-		.id_ex_NPC(id_ex_NPC),
-		.id_ex_IR(id_ex_IR),
-		.id_ex_valid_inst(id_ex_valid_inst),
-		.ex_mem_NPC(ex_mem_NPC),
-		.ex_mem_IR(ex_mem_IR),
-		.ex_mem_valid_inst(ex_mem_valid_inst),
-		.mem_wb_NPC(mem_wb_NPC),
-		.mem_wb_IR(mem_wb_IR),
-		.mem_wb_valid_inst(mem_wb_valid_inst)
+		.if_is_NPC_out(if_is_NPC),
+		.if_is_IR_out(if_is_IR),
+		.if_is_valid_inst_out(if_is_valid_inst),
+		.rs_alu_NPC_out(rs_alu_NPC),
+		.rs_alu_IR_out(rs_alu_IR),
+		.rs_alu_valid_inst_out(rs_alu_valid_inst),
+		.rs_acu_NPC_out(rs_acu_NPC),
+		.rs_acu_IR_out(rs_acu_IR),
+		.rs_acu_valid_inst_out(rs_acu_valid_inst),
+		.lb_NPC_out(lb_NPC),
+		.lb_IR_out(lb_IR),
+		.lb_valid_inst_out(lb_valid_inst),
+		.ex_wr_NPC_out(ex_wr_NPC),
+		.ex_wr_IR_out(ex_wr_IR),
+		.ex_wr_valid_inst_out(ex_wr_valid_inst),
+		.commit_NPC_out(commit_NPC),
+		.commit_IR_out(commit_IR),
+		.commit_valid_inst_out(commit_valid_inst)
 	);
 	
 	
@@ -189,8 +201,8 @@ module testbench;
 		wb_fileno = $fopen("writeback.out");
 		
 		//Open header AFTER throwing the reset otherwise the reset state is displayed
-		print_header("                                                                            D-MEM Bus &\n");
-		print_header("Cycle:      IF      |     ID      |     EX      |     MEM     |     WB      Reg Result");
+		print_header("                                                                                                           D-MEM Bus &\n");
+		print_header("Cycle:      IF      |     IS      |     ALU     |     ACU     |     LD      |     WR      |     CMT        Reg Result");
 	end
 
 
@@ -219,10 +231,12 @@ module testbench;
 			 // print the piepline stuff via c code to the pipeline.out
 			 print_cycles();
 			 print_stage(" ", if_IR_out, if_NPC_out[31:0], {31'b0,if_valid_inst_out});
-			 print_stage("|", if_id_IR, if_id_NPC[31:0], {31'b0,if_id_valid_inst});
-			 print_stage("|", id_ex_IR, id_ex_NPC[31:0], {31'b0,id_ex_valid_inst});
-			 print_stage("|", ex_mem_IR, ex_mem_NPC[31:0], {31'b0,ex_mem_valid_inst});
-			 print_stage("|", mem_wb_IR, mem_wb_NPC[31:0], {31'b0,mem_wb_valid_inst});
+			 print_stage("|", if_is_IR, if_is_NPC[31:0], {31'b0,if_is_valid_inst});
+			 print_stage("|", rs_alu_IR, rs_alu_NPC[31:0], {31'b0,rs_alu_valid_inst});
+			 print_stage("|", rs_acu_IR, rs_acu_NPC[31:0], {31'b0,rs_acu_valid_inst});
+			 print_stage("|", lb_IR, lb_NPC[31:0], {31'b0,lb_valid_inst});
+			 print_stage("|", ex_wr_IR, ex_wr_NPC[31:0], {31'b0,ex_wr_valid_inst});
+			 print_stage("|", commit_IR, commit_NPC[31:0], {31'b0,commit_valid_inst});
 			 print_reg(32'b0, pipeline_commit_wr_data[31:0],
 				{27'b0,pipeline_commit_wr_idx}, {31'b0,pipeline_commit_wr_en});
 			 print_membus({30'b0,proc2mem_command}, {28'b0,mem2proc_response},
