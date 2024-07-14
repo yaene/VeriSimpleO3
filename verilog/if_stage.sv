@@ -22,6 +22,7 @@ module if_stage(
 	input  [3:0] Imem2proc_tag,
 
 	output logic [`XLEN-1:0] proc2Imem_addr,    // Address sent to Instruction memory
+	output logic [1:0] proc2Imem_command,
 	output IF_ID_PACKET if_packet_out         // Output data packet from IF going to ID, see sys_defs for signal information 
 );
 
@@ -33,6 +34,7 @@ module if_stage(
 	logic           PC_enable;
 	
 	assign proc2Imem_addr = {PC_reg[`XLEN-1:3], 3'b0};
+	assign proc2Imem_command = PC_enable ? BUS_LOAD : BUS_NONE;
 	
 	// this mux is because the Imem gives us 64 bits not 32 bits
 	assign if_packet_out.inst = PC_reg[2] ? Imem2proc_data[63:32] : Imem2proc_data[31:0];
@@ -46,7 +48,7 @@ module if_stage(
 	assign next_PC = ex_take_branch ? ex_target_pc : PC_plus_4;
 	
 	// The take-branch signal must override stalling (otherwise it may be lost)
-	assign PC_enable = if_enable | ex_take_branch;
+	assign PC_enable = if_enable | ex_take_branch | (Imem2proc_tag != 0);
 	
 	// Pass PC+4 down pipeline w/instruction
 	assign if_packet_out.NPC = PC_plus_4;
@@ -60,5 +62,5 @@ module if_stage(
 			PC_reg <= `SD next_PC; // transition to next PC
 	end  // always
 
-	assign if_packet_out.valid = 1;
+	assign if_packet_out.valid = (Imem2proc_tag != 0);
 endmodule  // module if_stage

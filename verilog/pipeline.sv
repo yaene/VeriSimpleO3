@@ -89,6 +89,7 @@ module pipeline (
 	
 	// Outputs from IF-Stage
 	logic [`XLEN-1:0] proc2Imem_addr;
+	logic [1:0] proc2Imem_command;
 	IF_ID_PACKET if_packet;
 
 	// Outputs from IF/IS Pipeline Register
@@ -164,7 +165,7 @@ module pipeline (
 	assign pipeline_commit_NPC = commit_packet.NPC;
 	
 	assign proc2mem_command =
-	     (proc2Dmem_command == BUS_NONE) ? BUS_LOAD : proc2Dmem_command;
+	     (proc2Dmem_command == BUS_NONE) ? proc2Imem_command : proc2Dmem_command;
 	assign proc2mem_addr =
 	     (proc2Dmem_command == BUS_NONE) ? proc2Imem_addr : proc2Dmem_addr;
 	//if it's an instruction, then load a double word (64 bits)
@@ -192,9 +193,12 @@ module pipeline (
 		.ex_take_branch(ex_take_branch),
 		.ex_target_pc(ex_target_pc),
 		.Imem2proc_data(mem2proc_data),
+		.Imem2proc_response(mem2proc_response),
+		.Imem2proc_data(mem2proc_data),
 		
 		// Outputs
 		.proc2Imem_addr(proc2Imem_addr),
+		.proc2Imem_command(proc2Imem_command),
 		.if_packet_out(if_packet)
 	);
 
