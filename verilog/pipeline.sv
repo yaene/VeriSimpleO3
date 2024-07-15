@@ -194,7 +194,7 @@ module pipeline (
 		.ex_target_pc(ex_target_pc),
 		.Imem2proc_data(mem2proc_data),
 		.Imem2proc_response(mem2proc_response),
-		.Imem2proc_data(mem2proc_data),
+		.Imem2proc_tag(mem2proc_tag),
 		
 		// Outputs
 		.proc2Imem_addr(proc2Imem_addr),

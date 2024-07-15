@@ -26,16 +26,24 @@ module if_stage(
 	output IF_ID_PACKET if_packet_out         // Output data packet from IF going to ID, see sys_defs for signal information 
 );
 
+	// State Definitions
+	typedef enum logic [1:0] {
+		IDLE,
+		REQUEST,
+		MEM_WAIT
+	} state_t;
 
-	logic    [`XLEN-1:0] PC_reg;             // PC we are currently fetching
+	state_t current_state, next_state;
+	logic [3:0] recorded_response;
+
+	logic [`XLEN-1:0] PC_reg;            // PC we are currently fetching
 	
-	logic    [`XLEN-1:0] PC_plus_4;
-	logic    [`XLEN-1:0] next_PC;
-	logic           PC_enable;
+	logic [`XLEN-1:0] PC_plus_4;
+	logic [`XLEN-1:0] next_PC;
+	logic PC_enable;
 	
 	assign proc2Imem_addr = {PC_reg[`XLEN-1:3], 3'b0};
-	assign proc2Imem_command = PC_enable ? BUS_LOAD : BUS_NONE;
-	
+
 	// this mux is because the Imem gives us 64 bits not 32 bits
 	assign if_packet_out.inst = PC_reg[2] ? Imem2proc_data[63:32] : Imem2proc_data[31:0];
 	
@@ -48,19 +56,74 @@ module if_stage(
 	assign next_PC = ex_take_branch ? ex_target_pc : PC_plus_4;
 	
 	// The take-branch signal must override stalling (otherwise it may be lost)
-	assign PC_enable = if_enable | ex_take_branch | (Imem2proc_tag != 0);
+	assign PC_enable = if_enable | ex_take_branch;
 	
 	// Pass PC+4 down pipeline w/instruction
 	assign if_packet_out.NPC = PC_plus_4;
 	assign if_packet_out.PC  = PC_reg;
-	// This register holds the PC value
-	// synopsys sync_set_reset "reset"
-	always_ff @(posedge clock) begin
-		if(reset)
-			PC_reg <= `SD 0;       // initial PC value is 0
-		else if(PC_enable)
-			PC_reg <= `SD next_PC; // transition to next PC
-	end  // always
 
-	assign if_packet_out.valid = (Imem2proc_tag != 0);
+	// State Transition Logic
+	always_ff @(posedge clock) begin
+		if (reset) begin
+			current_state <= IDLE;
+		end else begin
+			current_state <= next_state;
+		end
+	end
+
+	// State Transition Conditions
+	always_comb begin
+		next_state = current_state;
+		proc2Imem_command = BUS_NONE;
+		if_packet_out.valid = 0;
+		case (current_state)
+			IDLE: begin
+				if (!reset && PC_enable) begin
+					proc2Imem_command = BUS_LOAD;
+					recorded_response = Imem2proc_response;
+					if (Imem2proc_response != Imem2proc_tag) begin
+						next_state = MEM_WAIT;
+					end
+					else begin
+						next_state = REQUEST;
+						if_packet_out.valid = 1;
+					end
+				end
+			end
+			REQUEST: begin
+				if (PC_enable) begin
+					proc2Imem_command = BUS_LOAD;
+					recorded_response = Imem2proc_response;
+					if (Imem2proc_response != Imem2proc_tag) begin
+						next_state = MEM_WAIT;
+					end
+					else begin
+						if_packet_out.valid = 1;
+					end
+				end
+				else begin
+					next_state = IDLE;
+				end				
+			end
+			MEM_WAIT: begin
+				proc2Imem_command = BUS_NONE;
+				if (Imem2proc_tag == recorded_response) begin
+					next_state = REQUEST;
+					if_packet_out.valid = 1;
+				end
+			end
+		endcase
+	end
+
+	// Output Logic
+	always_ff @(posedge clock or posedge reset) begin
+		if (reset) begin
+			PC_reg <= `SD 0;
+		end else begin
+			if (PC_enable && current_state != MEM_WAIT) begin
+				PC_reg <= `SD next_PC; // transition to next PC
+			end
+		end
+	end
+
 endmodule  // module if_stage
