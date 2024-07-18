@@ -11,9 +11,9 @@ module alu(
     wire        [2*`XLEN-1:0] unsigned_mul;
     assign signed_opa = opa;
     assign signed_opb = opb;
-    assign signed_mul = signed_opa * signed_opb;
-    assign unsigned_mul = opa * opb;
-    assign mixed_mul = signed_opa * opb;
+    // assign signed_mul = signed_opa * signed_opb;
+    // assign unsigned_mul = opa * opb;
+    // assign mixed_mul = signed_opa * opb;
 
     always_comb begin
         case (func)
@@ -27,10 +27,10 @@ module alu(
             ALU_SRL:      result = opa >> opb[4:0];
             ALU_SLL:      result = opa << opb[4:0];
             ALU_SRA:      result = signed_opa >>> opb[4:0]; // arithmetic from logical shift
-            ALU_MUL:      result = signed_mul[`XLEN-1:0];
-            ALU_MULH:     result = signed_mul[2*`XLEN-1:`XLEN];
-            ALU_MULHSU:   result = mixed_mul[2*`XLEN-1:`XLEN];
-            ALU_MULHU:    result = unsigned_mul[2*`XLEN-1:`XLEN];
+            // ALU_MUL:      result = signed_mul[`XLEN-1:0];
+            // ALU_MULH:     result = signed_mul[2*`XLEN-1:`XLEN];
+            // ALU_MULHSU:   result = mixed_mul[2*`XLEN-1:`XLEN];
+            // ALU_MULHU:    result = unsigned_mul[2*`XLEN-1:`XLEN];
 
             default:      result = `XLEN'hfacebeec;  // here to prevent latches
         endcase
@@ -211,4 +211,111 @@ module address_calculation_unit(
         end
     end
 
+endmodule
+
+module mult_stage #(parameter num_stages = 4)(
+					input clock, reset, start,
+					input [`XLEN-1:0] product_in, mplier_in, mcand_in,
+
+					output logic done,
+					output logic [`XLEN-1:0] product_out, mplier_out, mcand_out
+				);
+
+
+    
+	logic [`XLEN-1:0] prod_in_reg, partial_prod_reg;
+	logic [`XLEN-1:0] partial_product, next_mplier, next_mcand;
+
+    parameter num_each = `XLEN/num_stages;
+	assign product_out = prod_in_reg + partial_prod_reg;
+
+	assign partial_product = mplier_in[(num_each-1):0] * mcand_in;
+
+	assign next_mplier = {{num_each{1'b0}}, mplier_in[`XLEN-1:num_stages]};
+	assign next_mcand = {mcand_in[`XLEN-1-num_each:0],{num_each{1'b0}}};
+
+	always_ff @(posedge clock) begin
+		prod_in_reg      <= product_in;
+		partial_prod_reg <= partial_product;
+		mplier_out       <= next_mplier;
+		mcand_out        <= next_mcand;
+	end
+
+	// synopsys sync_set_reset "reset"
+	always_ff @(posedge clock) begin
+		if(reset)
+			done <= 1'b0;
+		else
+			done <= start;
+	end
+
+endmodule
+
+module mult  #(parameter num_stages = 4)(
+				input clock, reset,
+				input [`XLEN-1:0] mcand, mplier,
+				input start,				
+				output [`XLEN-1:0] product,
+				output done
+			);
+  logic [`XLEN-1:0] mcand_out, mplier_out;
+  logic [((num_stages-1)*`XLEN)-1:0] internal_products, internal_mcands, internal_mpliers;
+  logic [(num_stages-2):0] internal_dones;
+
+	mult_stage #(.num_stages(num_stages)) mstage [(num_stages-1):0] (
+		.clock(clock),
+		.reset(reset),
+		.product_in({internal_products,`XLEN'h0}),
+		.mplier_in({internal_mpliers,mplier}),
+		.mcand_in({internal_mcands,mcand}),
+		.start({internal_dones,start}),
+		.product_out({product,internal_products}),
+		.mplier_out({mplier_out,internal_mpliers}),
+		.mcand_out({mcand_out,internal_mcands}),
+		.done({done,internal_dones})
+	);
+
+endmodule
+
+module pipelined_multiplication_unit(
+    input INSTR_READY_ENTRY ready_inst_entry, // output ready instruction entry from RS
+    input clock,
+    input reset,
+    input start,
+    
+    output CDB_DATA mult_cdb_output, // multiplication product output to CDB
+    output done //indicates whether the multiplication is done
+);
+    logic [`XLEN-1:0] opa, opb;
+    ALU_FUNC func;
+    logic clock, start, reset;
+    logic done;
+    logic [`XLEN-1:0] result;
+
+    alu_info_extraction operands_extract(
+        //Input
+        .ready_inst_entry(ready_inst_entry),
+        //Outputs
+        .opa(opa),
+        .opb(opb),
+        .func(func)
+    );
+
+    mult m0(
+        //Inputs
+        .clock(clock),
+        .reset(reset),
+        .mcand(opa),
+        .mplier(opb),
+        .start(start),
+        //Outputs
+        .product(result),
+        .done(done)
+    );
+    always_comb begin
+        mult_cdb_output.valid = 1;
+        mult_cdb_output.value = result;
+        mult_cdb_output.rob_tag = ready_inst_entry.rd_tag;
+    end
+    
 endmodule
