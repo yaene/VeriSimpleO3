@@ -11,6 +11,8 @@ module ReservationStation #(parameter NO_WAIT_RS2 = 0)(
     input [`ROB_TAG_LEN-1:0] alloc_slot,
     input alloc_enable,
     input exec_stall,
+    input kill,
+    input resolve,
 
     // Output
     output logic rs_full,
@@ -18,7 +20,7 @@ module ReservationStation #(parameter NO_WAIT_RS2 = 0)(
 );
 
     INSTR_READY_ENTRY instr_ready_table [0:`RS_DEPTH-1];
-    INSTR_READY_ENTRY sorted_instr_ready_table [0:`RS_DEPTH-1];
+    INSTR_READY_ENTRY sorted_instr_ready_table [0:`RS_DEPTH-1]; // NOT USED ANYMORE?
     logic [`BIRTHDAY_SIZE-1:0] max_birthday = 0;
     logic [`BIRTHDAY_SIZE-1:0] oldest_birthday;
     logic found_ready_instr;
@@ -39,6 +41,23 @@ module ReservationStation #(parameter NO_WAIT_RS2 = 0)(
                 oldest_birthday = instr_ready_table[i].birthday;
                 ready_inst_index = i;
                 found_ready_instr = 1;                    
+            end
+        end
+    end
+
+    always_comb begin
+        if (kill) begin // Misprediction FLUSH!
+            for (integer i = 0; i < `RS_DEPTH; i = i + 1) begin
+                if (instr_ready_table[i].speculative) begin
+                    instr_ready_table[i] = '0;
+                end
+            end
+        end
+        if (resolve) begin
+            for (integer i = 0; i < `RS_DEPTH; i = i + 1) begin
+                if (instr_ready_table[i].speculative) begin
+                    instr_ready_table[i].speculative = `FALSE;
+                end
             end
         end
     end

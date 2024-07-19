@@ -375,6 +375,8 @@ hazard_detection_unit hdu_0 (
 		.maptable_packet_rs2(maptable_packet_rs2),
 		.rs1_read_rob_value(rob_read_value_rs1),
 		.rs2_read_rob_value(rob_read_value_rs2),
+		.kill(kill),
+		.resolve(resolve),
 		
 		// Outputs
 		.id_packet_out(is_packet),
@@ -407,6 +409,8 @@ ReservationStation #(.NO_WAIT_RS2(1)) ld_st_rs  (
 	.alloc_slot(rob_alloc_slot),
 	.alloc_enable(rs_ld_st_enable),
 	.exec_stall(rs_ld_exec_stall),
+	.kill(kill),
+	.resolve(resolve),
 
 	// outputs
 	.rs_full(rs_ld_st_full),
@@ -424,6 +428,8 @@ ReservationStation #(.NO_WAIT_RS2(0)) alu_rs  (
 	.alloc_slot(rob_alloc_slot),
 	.alloc_enable(rs_alu_enable),
 	.exec_stall(rs_alu_exec_stall),
+	.kill(kill),
+	.resolve(resolve),
 
 	// outputs
 	.rs_full(rs_alu_full),
@@ -448,7 +454,7 @@ alu_execution_unit alu_0 (
 	.alu_output(alu_packet),
 	.take_branch(ex_take_branch),
 	.branch_target_PC(ex_target_pc)
-	.has_branch(valid_branch)
+	.valid_branch(valid_branch)
 );
 
 	assign rs_acu_NPC_out        = rs_ld_st_out.instr.NPC;

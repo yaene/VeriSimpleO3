@@ -223,6 +223,8 @@ module is_stage (
 	// input from ROB
 	input [`XLEN-1:0] rs1_read_rob_value,
 	input [`XLEN-1:0] rs2_read_rob_value, 
+	input kill,
+	input resolve,
 	
 	// output to hazard detection
 	output is_ld_st_inst,
@@ -242,6 +244,8 @@ module is_stage (
 	logic [`XLEN-1:0] regf_rs1_value;
 	logic [`XLEN-1:0] regf_rs2_value;
 
+	logic valid_reg;
+
     assign id_packet_out.inst = if_id_packet_in.inst;
     assign id_packet_out.NPC  = if_id_packet_in.NPC;
     assign id_packet_out.PC   = if_id_packet_in.PC;
@@ -254,6 +258,8 @@ module is_stage (
     assign alloc_store_dep = maptable_packet_rs2.rob_tag_val;
 
 	assign branch_detected = id_packet_out.cond_branch;
+	assign id_packet_out.speculative = (resolve) ? `FALSE : branch_detected;
+	assign id_packet_out.valid = (kill) ? `FALSE : valid_reg;
 
 	DEST_REG_SEL dest_reg_select; 
 
@@ -286,7 +292,7 @@ module is_stage (
 		.csr_op(id_packet_out.csr_op),
 		.halt(id_packet_out.halt),
 		.illegal(id_packet_out.illegal),
-		.valid_inst(id_packet_out.valid)
+		.valid_inst(valid_reg)
 	);
 
 	// mux to generate dest_reg_idx based on
@@ -297,10 +303,6 @@ module is_stage (
 			DEST_NONE:  id_packet_out.dest_reg_idx = `ZERO_REG;
 			default:    id_packet_out.dest_reg_idx = `ZERO_REG; 
 		endcase
-	end
-
-	always_comb begin
-
 	end
 
 	assign rs1_rob_tag = maptable_packet_rs1.rob_tag_val;

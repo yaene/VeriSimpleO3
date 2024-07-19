@@ -283,6 +283,7 @@ typedef struct packed{
     logic [`XLEN-1:0] address;
     logic [`ROB_TAG_LEN-1:0] rd_tag;
     logic [2:0] mem_size;
+	logic speculative;
 } LB_PACKET;
 
 //////////////////////////////////////////////
@@ -327,6 +328,7 @@ typedef struct packed {
 	logic       illegal;       // is this instruction illegal?
 	logic       csr_op;        // is this a CSR operation? (we only used this as a cheap way to get return code)
 	logic       valid;         // is inst a valid instruction to be counted for CPI calculations?
+	logic		speculative;
 } ID_EX_PACKET;
 
 typedef struct packed {
@@ -335,6 +337,7 @@ typedef struct packed {
 	INST inst;
     logic [`ROB_TAG_LEN-1:0] rob_tag; // identifies instruction that produced value
     logic [`XLEN-1:0] value;
+	logic speculative;
 } EX_WR_PACKET;
 
 typedef struct packed {
@@ -348,6 +351,7 @@ typedef struct packed {
     logic [`XLEN-1:0] rs1_value;
     logic [`XLEN-1:0] rs2_value;
 	logic [`BIRTHDAY_SIZE-1:0] birthday;
+	logic speculative;
 	ID_EX_PACKET instr;
 } INSTR_READY_ENTRY;
 
@@ -362,6 +366,7 @@ typedef struct packed {
 	logic [4:0] reg_wr_idx_out;
 	logic  reg_wr_en_out;
 	logic [`ROB_TAG_LEN-1:0] rob_tag;
+	logic speculative;
 } COMMIT_PACKET;
 
 `endif // __SYS_DEFS_VH__
