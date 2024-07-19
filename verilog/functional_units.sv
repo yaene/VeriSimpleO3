@@ -107,7 +107,8 @@ module alu_execution_unit(
 
     output EX_WR_PACKET alu_output, // CDB data output from ALU execution unit
     output logic take_branch, // indicates whether the branch will be taken
-    output logic [`XLEN-1:0] branch_target_PC // targeted branch PC when taking branch
+    output logic [`XLEN-1:0] branch_target_PC, // targeted branch PC when taking branch
+    output has_branch
 );
     logic brcond_result;
     logic [`XLEN-1:0] opa, opb;
@@ -148,6 +149,9 @@ module alu_execution_unit(
      // unconditional, or conditional and the condition is true
     assign take_branch = ready_inst_entry.instr.uncond_branch
                                   | (ready_inst_entry.instr.cond_branch & brcond_result);
+
+    assign has_branch = ready_inst_entry.instr.cond_branch;
+                                
     always_comb begin
         if (~ready_inst_entry.ready) begin
             alu_output = '0;

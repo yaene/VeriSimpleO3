@@ -3,13 +3,13 @@
 
 `timescale 1ns/100ps
 module branch_resolution_unit ( 
-    input reset,
     input clock,
+    input reset,
     // Treat one branch only, IF will stall for second branch until the first is resolved
     //input [`ROB_TAG_LEN-1:0] branch_rob_tag,
     input branch_detected,
     input take_branch, // assume speculation is all branch_not_taken
-    input valid_in,
+    input valid_branch,
     // input maptable snapshot
 
     output busy,
@@ -42,7 +42,7 @@ module branch_resolution_unit (
                 end
             end
             PENDING:
-                if (valid_in) begin
+                if (valid_branch) begin
                     if (take_branch) kill = `TRUE;
                     else resolve = `TRUE;
                 end

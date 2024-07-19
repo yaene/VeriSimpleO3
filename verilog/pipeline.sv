@@ -72,6 +72,11 @@ module pipeline (
 
 );
 
+	// branch resolution unit outputs
+	logic branch_pending;
+	logic kill;
+	logic resolve;
+
 	// hazard detection unit outputs
     logic if_enable;
     logic if_is_enable;
@@ -309,6 +314,25 @@ hazard_detection_unit hdu_0 (
     .acu_wr_enable(acu_wr_enable)
 );
 
+//////////////////////////////////////////////////
+//                                              //
+//             Branch Resolution                //
+//                                              //
+//////////////////////////////////////////////////
+	logic branch_detected;
+	logic valid_branch;
+	branch_resolution_unit bru_0 (
+		.clock(clock),
+		.reset(reset),
+		.branch_detected(branch_detected),
+		.take_branch(ex_take_branch),
+		.valid_branch(valid_branch),
+
+		.busy(branch_pending),
+		.kill(kill),
+		.resolve(resolve)
+	);
+
    
 //////////////////////////////////////////////////
 //                                              //
@@ -421,6 +445,7 @@ alu_execution_unit alu_0 (
 	.alu_output(alu_packet),
 	.take_branch(ex_take_branch),
 	.branch_target_PC(ex_target_pc)
+	.has_branch(valid_branch)
 );
 
 	assign rs_acu_NPC_out        = rs_ld_st_out.instr.NPC;
