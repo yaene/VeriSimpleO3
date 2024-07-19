@@ -35,9 +35,9 @@ module branch_resolution_unit (
     always_comb begin
         case (state)
             READY: begin
+                kill = `FALSE;
+                resolve = `FALSE;
                 if (branch_detected) begin
-                    kill = `FALSE;
-                    resolve = `FALSE;
                     state_next = PENDING;
                 end
             end
