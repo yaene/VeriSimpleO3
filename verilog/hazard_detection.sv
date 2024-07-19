@@ -21,6 +21,7 @@ module hazard_detection_unit (
     input acu_wr_written,
     input acu_wr_mem,
     input acu_rd_mem,
+    input branch_pending,
 
     output if_enable,
     output if_is_enable,
@@ -37,12 +38,13 @@ module hazard_detection_unit (
 );
 
     logic is_stall;
-    l// ogic branch_in_exec;
+    // logic branch_in_exec;
     logic if_mem_hazard;
 
     assign is_stall = rob_full
         | (is_ld_st_inst & rs_ld_st_full)
-        | (~is_ld_st_inst & rs_alu_full);
+        | (~is_ld_st_inst & rs_alu_full)
+        | (branch_pending);
         // | branch_in_exec;
 
     assign if_mem_hazard = commit_wr_mem | lb_read_mem;

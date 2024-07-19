@@ -235,7 +235,8 @@ module is_stage (
     output alloc_value_in_valid,               // whether store value is available at issue
 	output [2:0] alloc_mem_size,
     output [`ROB_TAG_LEN-1:0] rs1_rob_tag,
-	output [`ROB_TAG_LEN-1:0] rs2_rob_tag
+	output [`ROB_TAG_LEN-1:0] rs2_rob_tag,
+	output branch_detected
 );
 
 	logic [`XLEN-1:0] regf_rs1_value;
@@ -251,6 +252,8 @@ module is_stage (
     assign alloc_value_in = id_packet_out.rs2_value;
     assign alloc_value_in_valid = (alloc_wr_mem && maptable_packet_rs2.rob_tag_val == 0);
     assign alloc_store_dep = maptable_packet_rs2.rob_tag_val;
+
+	assign branch_detected = id_packet_out.cond_branch;
 
 	DEST_REG_SEL dest_reg_select; 
 
@@ -294,6 +297,10 @@ module is_stage (
 			DEST_NONE:  id_packet_out.dest_reg_idx = `ZERO_REG;
 			default:    id_packet_out.dest_reg_idx = `ZERO_REG; 
 		endcase
+	end
+
+	always_comb begin
+
 	end
 
 	assign rs1_rob_tag = maptable_packet_rs1.rob_tag_val;

@@ -298,6 +298,8 @@ hazard_detection_unit hdu_0 (
 	.acu_wr_written(acu_written),
 	.acu_wr_mem(acu_st_packet.valid),
 	.acu_rd_mem(acu_ld_packet.valid),
+	.branch_pending(branch_pending),
+
 
 	// outputs
     .if_enable(if_enable),
@@ -328,7 +330,7 @@ hazard_detection_unit hdu_0 (
 		.take_branch(ex_take_branch),
 		.valid_branch(valid_branch),
 
-		.busy(branch_pending),
+		.branch_pending(branch_pending),
 		.kill(kill),
 		.resolve(resolve)
 	);
@@ -383,7 +385,8 @@ hazard_detection_unit hdu_0 (
 		.alloc_value_in_valid(rob_alloc_value_in_valid),
 		.alloc_mem_size(rob_alloc_mem_size),
 		.rs1_rob_tag(is_rs1_rob_tag),
-		.rs2_rob_tag(is_rs2_rob_tag)
+		.rs2_rob_tag(is_rs2_rob_tag),
+		.branch_detected(branch_detected)
 	);
 
 //////////////////////////////////////////////////

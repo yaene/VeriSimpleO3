@@ -12,7 +12,7 @@ module branch_resolution_unit (
     input valid_branch,
     // input maptable snapshot
 
-    output busy,
+    output branch_pending,
     output logic kill,
     output logic resolve
     // output maptable recovery
@@ -50,7 +50,7 @@ module branch_resolution_unit (
         endcase
     end
 
-    assign busy = state;
+    assign branch_pending = state;
 
 endmodule
 
