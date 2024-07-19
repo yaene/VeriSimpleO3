@@ -3,8 +3,6 @@
 
 `timescale 1ns/100ps
 
-`define EMPTY_LB_PACKET '{`FALSE, `XLEN'b0, `XLEN'b0, `XLEN'b0, `ROB_TAG_LEN'b0, 3'b0}
-
 module load_buffer (
     input clock,
     input reset,
@@ -12,6 +10,8 @@ module load_buffer (
     input alloc_enable,
     input pending_stores, // from ROB, whether there are pending stores
     input lb_exec_stall, // from hazard detection unit
+    input kill,
+    input resolve,
 
     output LB_PACKET lb_packet_out,
     output logic full, // to ACU, whether Load Buffer is available
@@ -24,7 +24,7 @@ module load_buffer (
 
     always_ff @(posedge clock) begin
         if (reset) begin
-            lb_packet <= `EMPTY_LB_PACKET;
+            lb_packet <= '0;
             full <= `FALSE;
         end
         else begin
@@ -36,7 +36,7 @@ module load_buffer (
             end
             else begin
                 if (read_mem && ~lb_exec_stall) begin
-                    lb_packet <= `EMPTY_LB_PACKET;
+                    lb_packet <= '0;
                     full <= `FALSE;
                 end
             end
@@ -50,13 +50,13 @@ module load_buffer (
 
     always_comb begin
         lb_packet_out = lb_packet;
-        if (~read_mem || lb_exec_stall) begin
+        if (~read_mem || lb_exec_stall || (kill & lb_packet_in.speculative)) begin
             // make sure that if we have no result available
             // it is not accidentally put on CDB
             lb_packet_out.valid = `FALSE;
         end
     end
-    
+    assign lb_packet_out.speculative = (resolve) ? `FALSE : lb_packet_in.speculative;
 
 endmodule
 

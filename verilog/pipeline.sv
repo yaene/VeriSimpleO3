@@ -486,6 +486,8 @@ load_buffer load_buffer_0 (
 	.alloc_enable(`TRUE), 
 	.pending_stores(pending_stores),
 	.lb_exec_stall(lb_exec_stall),
+	.kill(kill),
+	.resolve(resolve),
 	// outputs
 	.lb_packet_out(lb_packet),
 	.full(lb_full),
@@ -501,6 +503,8 @@ mem_stage mem_stage_0 (// Inputs
 		.read_mem(lb_read_mem),
 		.cmt_packet_in(commit_packet),
 		.Dmem2proc_data(mem2proc_data[`XLEN-1:0]),
+		.kill(kill),
+		.resolve(resolve),
 		
 		// Outputs
 		.lb_ex_packet_out(lb_ex_packet),
@@ -549,6 +553,8 @@ mem_stage mem_stage_0 (// Inputs
 		.clock(clock),
 		.reset(reset),
 		.ex_packet_in({acu_wr_packet,alu_wr_packet,lb_wr_packet}),
+		.kill(kill),
+		//.resolve(resolve),
 		// outputs
 		.cdb(cdb_data),
 		.written({acu_written, alu_written, load_written}),

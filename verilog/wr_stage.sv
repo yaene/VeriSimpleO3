@@ -5,6 +5,8 @@ module wr_stage #(parameter FU_NUM=3) (
     input clock,
     input reset,
     input EX_WR_PACKET [FU_NUM-1:0] ex_packet_in, // result to put on CDB
+    input kill,
+    // input resolve,
     output CDB_DATA cdb,
     output logic [FU_NUM-1:0] written, // one bit for each FU unit letting it know if its been chosen for WR or has to wait
     output INST wr_inst,
@@ -19,7 +21,7 @@ always_comb begin
     for (int i = 0; i < FU_NUM; ++i) begin
         if (~cdb.valid & ex_packet_in[i].valid) begin
             written[i] = `TRUE;
-            cdb.valid = `TRUE;
+            cdb.valid = !(kill & ex_packet_in[i].speculative);
             cdb.value = ex_packet_in[i].value;
             cdb.rob_tag = ex_packet_in[i].rob_tag;
             wr_inst = ex_packet_in[i].inst;
@@ -27,6 +29,5 @@ always_comb begin
         end
     end
 end
-
 
 endmodule

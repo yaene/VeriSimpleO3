@@ -27,6 +27,9 @@ module mem_stage(
 	input logic  read_mem,					// form load buffer
 
 	input COMMIT_PACKET  cmt_packet_in,	// from commit stage
+
+	input kill,
+	input resolve,
 	
 	
 	output mem_busy,					//to load buffer
@@ -40,8 +43,9 @@ module mem_stage(
 
 	logic [`XLEN-1:0] mem_result_out;
 	
-	assign lb_ex_packet_out.valid = lb_packet_in.valid;
-	assign lb_ex_packet_out.NPC = lb_packet_in.NPC;
+	assign lb_ex_packet_out.valid = lb_packet_in.valid & !(kill & lb_packet_in.speculative);
+	assign lb_ex_packet_out.speculative = (resolve) ? `FALSE : lb_packet_in.speculative;
+ 	assign lb_ex_packet_out.NPC = lb_packet_in.NPC;
 	assign lb_ex_packet_out.inst = lb_packet_in.inst;
 	assign lb_ex_packet_out.rob_tag = lb_packet_in.rd_tag;
 	assign lb_ex_packet_out.value = mem_result_out;
