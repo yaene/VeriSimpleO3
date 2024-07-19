@@ -104,6 +104,8 @@ endmodule
 
 module alu_execution_unit(
     input INSTR_READY_ENTRY ready_inst_entry, // output ready instruction entry from RS
+    input kill,
+    input resolve,
 
     output EX_WR_PACKET alu_output, // CDB data output from ALU execution unit
     output logic take_branch, // indicates whether the branch will be taken
@@ -151,6 +153,8 @@ module alu_execution_unit(
                                   | (ready_inst_entry.instr.cond_branch & brcond_result);
 
     assign valid_branch = ready_inst_entry.instr.cond_branch;
+    assign alu_output.valid = !(kill & ready_inst_entry.speculative);
+    assign alu_output.speculative = (resolve) `FALSE : ready_inst_entry.speculative;
                                 
     always_comb begin
         if (~ready_inst_entry.ready) begin
@@ -159,19 +163,19 @@ module alu_execution_unit(
         end
         else if (take_branch) begin
             branch_target_PC = result;
-            alu_output.valid = 1;
+            // alu_output.valid = 1;
             alu_output.value = ready_inst_entry.instr.NPC;
             alu_output.rob_tag = ready_inst_entry.rd_tag;
         end
         else if (~ready_inst_entry.instr.uncond_branch && (~ready_inst_entry.instr.cond_branch)) begin
             branch_target_PC = 0; //no matter what, since not take_branch
-            alu_output.valid = 1;
+            // alu_output.valid = 1;
             alu_output.value = result;
             alu_output.rob_tag = ready_inst_entry.rd_tag;
         end
         else begin // not take branch, but branch instructions
             branch_target_PC = 0;
-            alu_output.valid = 1;
+            // alu_output.valid = 1;
             alu_output.value = 0;
             alu_output.rob_tag = ready_inst_entry.rd_tag;
         end
@@ -181,6 +185,8 @@ endmodule // alu
 
 module address_calculation_unit(
     input INSTR_READY_ENTRY ready_inst_entry, // output ready instruction entry from RS
+    input kill,
+    input resolve,
 
     output EX_WR_PACKET store_result, // output address result for writing, for store instruction
     output LB_PACKET load_buffer_packet // output packet for load buffer usage
@@ -213,6 +219,11 @@ module address_calculation_unit(
     assign load_buffer_packet.NPC = ready_inst_entry.instr.NPC;
     assign store_result.inst = ready_inst_entry.instr.inst;
     assign load_buffer_packet.inst = ready_inst_entry.instr.inst;
+
+    assign load_buffer_packet.valid = !(kill & ready_inst_entry.speculative);
+    assign load_buffer_packet.speculative = (resolve) `FALSE : ready_inst_entry.speculative;
+    assign store_result.valid = !(kill & ready_inst_entry.speculative);
+    assign store_result.speculative = (resolve) `FALSE : ready_inst_entry.speculative;
 
     always_comb begin
         load_buffer_packet.address = result;

@@ -450,6 +450,8 @@ ReservationStation #(.NO_WAIT_RS2(0)) alu_rs  (
 alu_execution_unit alu_0 (
 	// inputs
 	.ready_inst_entry(rs_alu_out),
+	.kill(kill),
+	.resolve(resolve),
 	// outputs
 	.alu_output(alu_packet),
 	.take_branch(ex_take_branch),
@@ -464,6 +466,8 @@ alu_execution_unit alu_0 (
 address_calculation_unit acu_0 (
 	// inputs
 	.ready_inst_entry(rs_ld_st_out),
+	.kill(kill),
+	.resolve(resolve),
 	// outputs
 	.store_result(acu_st_packet),
 	.load_buffer_packet(acu_ld_packet)
