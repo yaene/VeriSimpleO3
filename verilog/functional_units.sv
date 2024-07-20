@@ -110,7 +110,6 @@ module alu_execution_unit(
     output EX_WR_PACKET alu_output, // CDB data output from ALU execution unit
     output logic take_branch, // indicates whether the branch will be taken
     output logic [`XLEN-1:0] branch_target_PC, // targeted branch PC when taking branch
-    output valid_branch
 );
     logic brcond_result;
     logic [`XLEN-1:0] opa, opb;
@@ -152,9 +151,8 @@ module alu_execution_unit(
     assign take_branch = ready_inst_entry.instr.uncond_branch
                                   | (ready_inst_entry.instr.cond_branch & brcond_result);
 
-    assign valid_branch = ready_inst_entry.instr.cond_branch;
     assign alu_output.valid = !(kill & ready_inst_entry.speculative);
-    assign alu_output.speculative = (resolve) `FALSE : ready_inst_entry.speculative;
+    assign alu_output.speculative = (resolve) ? `FALSE : ready_inst_entry.speculative;
                                 
     always_comb begin
         if (~ready_inst_entry.ready) begin
@@ -221,9 +219,9 @@ module address_calculation_unit(
     assign load_buffer_packet.inst = ready_inst_entry.instr.inst;
 
     assign load_buffer_packet.valid = !(kill & ready_inst_entry.speculative);
-    assign load_buffer_packet.speculative = (resolve) `FALSE : ready_inst_entry.speculative;
+    assign load_buffer_packet.speculative = (resolve) ? `FALSE : ready_inst_entry.speculative;
     assign store_result.valid = !(kill & ready_inst_entry.speculative);
-    assign store_result.speculative = (resolve) `FALSE : ready_inst_entry.speculative;
+    assign store_result.speculative = (resolve) ? `FALSE : ready_inst_entry.speculative;
 
     always_comb begin
         load_buffer_packet.address = result;

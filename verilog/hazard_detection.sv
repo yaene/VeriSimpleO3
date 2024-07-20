@@ -10,8 +10,8 @@ module hazard_detection_unit (
     input is_valid_inst,
     input commit_wr_mem,
     input lb_read_mem,
-    // input is_branch,
-    // input alu_branch,
+    input is_branch,
+    input alu_branch,
     input ex_take_branch,
     input alu_wr_valid,
     input alu_wr_written,
@@ -38,14 +38,13 @@ module hazard_detection_unit (
 );
 
     logic is_stall;
-    // logic branch_in_exec;
+    logic branch_in_exec;
     logic if_mem_hazard;
 
     assign is_stall = rob_full
         | (is_ld_st_inst & rs_ld_st_full)
         | (~is_ld_st_inst & rs_alu_full)
-        | (branch_pending);
-        // | branch_in_exec;
+        | branch_in_exec;
 
     assign if_mem_hazard = commit_wr_mem | lb_read_mem;
 
@@ -67,20 +66,20 @@ module hazard_detection_unit (
     assign rs_alu_exec_stall = ~alu_wr_enable;
     assign lb_exec_stall = (commit_wr_mem | ~lb_wr_enable);
 
-    // always_ff @(posedge clock) begin
-    //     if (reset) begin
-    //         branch_in_exec <= `FALSE;
-    //     end else begin
-    //         // branch in exec if it is just about to leave IS
-    //         if (is_branch && rs_alu_enable) begin
-    //             branch_in_exec <= `TRUE;
-    //         end
-    //         // check exec_stall to make sure it is only set to false
-    //         // once for the same branch
-    //         else if (alu_branch && !rs_alu_exec_stall) begin
-    //             branch_in_exec <= `FALSE;
-    //         end
-    //     end
-    // end
+    always_ff @(posedge clock) begin
+        if (reset) begin
+            branch_in_exec <= `FALSE;
+        end else begin
+            // branch in exec if it is just about to leave IS
+            if ((branch_pending & is_branch & rs_alu_enable)) begin
+                branch_in_exec <= `TRUE;
+            end
+            // check exec_stall to make sure it is only set to false
+            // once for the same branch
+            else if (alu_branch && !rs_alu_exec_stall) begin
+                branch_in_exec <= `FALSE;
+            end
+        end
+    end
     
 endmodule

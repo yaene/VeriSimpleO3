@@ -223,6 +223,7 @@ module is_stage (
 	// input from ROB
 	input [`XLEN-1:0] rs1_read_rob_value,
 	input [`XLEN-1:0] rs2_read_rob_value, 
+	input branch_pending,
 	input kill,
 	input resolve,
 	
@@ -238,7 +239,6 @@ module is_stage (
 	output [2:0] alloc_mem_size,
     output [`ROB_TAG_LEN-1:0] rs1_rob_tag,
 	output [`ROB_TAG_LEN-1:0] rs2_rob_tag,
-	output branch_detected
 );
 
 	logic [`XLEN-1:0] regf_rs1_value;
@@ -257,8 +257,7 @@ module is_stage (
     assign alloc_value_in_valid = (alloc_wr_mem && maptable_packet_rs2.rob_tag_val == 0);
     assign alloc_store_dep = maptable_packet_rs2.rob_tag_val;
 
-	assign branch_detected = id_packet_out.cond_branch;
-	assign id_packet_out.speculative = (resolve) ? `FALSE : branch_detected;
+	assign id_packet_out.speculative = (resolve) ? `FALSE : branch_pending;
 	assign id_packet_out.valid = (kill) ? `FALSE : valid_reg;
 
 	DEST_REG_SEL dest_reg_select; 

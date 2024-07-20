@@ -73,8 +73,6 @@ module pipeline (
 );
 
 	// branch resolution unit
-	logic branch_detected;
-	logic valid_branch;
 	logic branch_pending;
 	logic kill;
 	logic resolve;
@@ -252,7 +250,7 @@ module pipeline (
 		.cdb_data(cdb_data),
 		.load_address(lb_address),
 		.load_rob_tag(lb_rob_tag),
-		.alloc_branch(branch_detected),
+		.alloc_branch(is_packet.cond_branch),
 		.kill(kill),
 		// outputs 
 		.full(rob_full),
@@ -273,11 +271,11 @@ module pipeline (
 //             Hazard Detection                 //
 //                                              //
 //////////////////////////////////////////////////
-// logic is_branch; 
-// logic alu_branch;
-// assign is_branch = is_packet.cond_branch | is_packet.uncond_branch;
-// assign alu_branch = rs_alu_out.instr.cond_branch 
-// 		| rs_alu_out.instr.uncond_branch;
+logic is_branch; 
+logic alu_branch;
+assign is_branch = is_packet.cond_branch | is_packet.uncond_branch;
+assign alu_branch = rs_alu_out.instr.cond_branch 
+		| rs_alu_out.instr.uncond_branch;
 
 hazard_detection_unit hdu_0 (
 	// inputs
@@ -291,8 +289,8 @@ hazard_detection_unit hdu_0 (
 	.is_valid_inst(is_packet.valid),
 	.commit_wr_mem(commit_packet.wr_mem),
 	.lb_read_mem(lb_read_mem),
-	// .is_branch(is_branch),
-	// .alu_branch(alu_branch),
+	.is_branch(is_branch),
+	.alu_branch(alu_branch),
 	.ex_take_branch(ex_take_branch),
 	.alu_wr_valid(alu_wr_packet.valid),
 	.alu_wr_written(alu_written),
@@ -303,7 +301,6 @@ hazard_detection_unit hdu_0 (
 	.acu_wr_mem(acu_st_packet.valid),
 	.acu_rd_mem(acu_ld_packet.valid),
 	.branch_pending(branch_pending),
-
 
 	// outputs
     .if_enable(if_enable),
@@ -328,9 +325,9 @@ hazard_detection_unit hdu_0 (
 	branch_resolution_unit bru_0 (
 		.clock(clock),
 		.reset(reset),
-		.branch_detected(branch_detected),
+		.branch_detected(is_packet.cond_branch),
 		.take_branch(ex_take_branch),
-		.valid_branch(valid_branch),
+		.valid_branch(rs_alu_out.instr.cond_branch),
 
 		.branch_pending(branch_pending),
 		.kill(kill),
@@ -361,7 +358,7 @@ hazard_detection_unit hdu_0 (
 		.valid_wb(rob_wr_valid),
 		.rd_wb(rob_wr_dest_reg),
 		.rob_entry_wb(wr_rob_tag),
-		.branch_detected(branch_detected),
+		.branch_pending(branch_pending),
 		.kill(kill),
 		.resolve(resolve),
 		//outputs
@@ -380,6 +377,7 @@ hazard_detection_unit hdu_0 (
 		.maptable_packet_rs2(maptable_packet_rs2),
 		.rs1_read_rob_value(rob_read_value_rs1),
 		.rs2_read_rob_value(rob_read_value_rs2),
+		.branch_pending(branch_pending),
 		.kill(kill),
 		.resolve(resolve),
 		
@@ -393,7 +391,6 @@ hazard_detection_unit hdu_0 (
 		.alloc_mem_size(rob_alloc_mem_size),
 		.rs1_rob_tag(is_rs1_rob_tag),
 		.rs2_rob_tag(is_rs2_rob_tag),
-		.branch_detected(branch_detected)
 	);
 
 //////////////////////////////////////////////////
@@ -461,7 +458,6 @@ alu_execution_unit alu_0 (
 	.alu_output(alu_packet),
 	.take_branch(ex_take_branch),
 	.branch_target_PC(ex_target_pc)
-	.valid_branch(valid_branch)
 );
 
 	assign rs_acu_NPC_out        = rs_ld_st_out.instr.NPC;

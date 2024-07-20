@@ -36,6 +36,7 @@ module branch_resolution_unit (
                 if (branch_detected) begin
                     state_next = PENDING;
                 end
+                else state_next = READY;
             end
             PENDING:
                 if (valid_branch) begin
@@ -43,6 +44,7 @@ module branch_resolution_unit (
                     else resolve = `TRUE;
                     state_next = READY;
                 end
+                else state_next = PENDING;
         endcase
     end
 

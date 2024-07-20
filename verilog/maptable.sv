@@ -17,7 +17,7 @@ module maptable(
   input logic valid_wb, // valid from wb from ROB
   input logic [4:0] rd_wb, // dest_reg from wb
   input logic [`ROB_TAG_LEN-1:0] rob_entry_wb, // rob entry from wb from ROB
-  input branch_detected,
+  input branch_pending,
   input kill, resolve,
 
   // Outputs
@@ -29,7 +29,6 @@ module maptable(
   logic [`ROB_TAG_LEN-1:0] maptable[31:0];
   logic ready_tag_table[31:0];
 
-  logic branch_not_pending;
   logic [`ROB_TAG_LEN-1:0] maptable_buffer[31:0];
   logic ready_tag_table_buffer[31:0];
 
@@ -70,29 +69,25 @@ module maptable(
         maptable_buffer[i] = 0;
         ready_tag_table_buffer[i] = 0;
       end
-      branch_not_pending <= 1;
     end
 
-    if (branch_detected) branch_not_pending <= 0;
-    else if (resolve) begin
-      branch_not_pending <= 1;
+    if (resolve) begin
       maptable_buffer <= maptable;
       ready_tag_table_buffer <= ready_tag_table;
     end
     else if (kill) begin
-      branch_not_pending <= 1;
       maptable <= maptable_buffer;
       ready_tag_table <= ready_tag_table_buffer;
     end
 
     if ((valid_wb) && (rd_wb != `ZERO_REG) && (rob_entry_wb == maptable[rd_wb])) begin
       ready_tag_table[rd_wb] = 1;
-      if (branch_not_pending) ready_tag_table_buffer[rd_wb] = 1;
+      if (!branch_pending) ready_tag_table_buffer[rd_wb] = 1;
     end
     if ((commit) && (rd_commit != `ZERO_REG) && (rob_entry_commit == maptable[rd_commit])) begin
       maptable[rd_commit] = 0;
       ready_tag_table[rd_commit] = 0;
-      if (branch_not_pending) begin
+      if (!branch_pending) begin
         maptable_buffer[rd_commit] = 0;
         ready_tag_table_buffer[rd_commit] = 0;
       end
@@ -100,7 +95,7 @@ module maptable(
     if (enable && rd != `ZERO_REG) begin
       maptable[rd] = rob_entry_in;
       ready_tag_table[rd] = 0;
-      if (branch_not_pending) begin
+      if (!branch_pending) begin
         maptable_buffer[rd] = rob_entry_in;
         ready_tag_table_buffer[rd] = 0;
       end

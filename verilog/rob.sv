@@ -126,12 +126,23 @@ module rob (input clock,
     
     // if new slot was allocated move tail
     always_comb begin
-        next_tail = tail;
-        if (alloc_enable && !full) begin
-            if (tail == ROB_SIZE)
-                next_tail = 1;
-            else
-                next_tail = tail + 1;
+        if (kill) begin
+            next_tail = branch_reg;
+            if (alloc_enable && !full) begin
+                if (branch_reg == ROB_SIZE)
+                    next_tail = 1;
+                else
+                    next_tail = tail + 1;
+            end
+        end
+        else begin
+            next_tail = tail;
+            if (alloc_enable && !full) begin
+                if (tail == ROB_SIZE)
+                    next_tail = 1;
+                else
+                    next_tail = tail + 1;
+            end
         end
     end
     
@@ -168,7 +179,6 @@ module rob (input clock,
     always_comb begin
         if (kill) begin
             tag_clearing = (branch_reg == ROB_SIZE) ? 1 : branch_reg + 1;
-            tail = branch_reg;
             for (int i = 1; i < ROB_SIZE; i++) begin
                 if (tag_clearing != head) begin
                     rob[tag_clearing] = `EMPTY_ROB_ENTRY;
