@@ -82,7 +82,7 @@ module if_stage(
 				end
 			end
 			MEM_WAIT: begin
-				if (Imem_ready) begin
+				if (Imem_ready || ex_take_branch) begin
 					next_state = READY;
 				end			
 			end
@@ -96,23 +96,15 @@ module if_stage(
 		if (reset) begin
 			PC_reg <= `SD 0;
 		end else begin
-			if (PC_enable && Imem_ready) begin
+			if ((PC_enable && Imem_ready) || ex_take_branch) begin
 				PC_reg <= `SD next_PC; // transition to next PC
 			end
 		end
 	end
 
-	always_ff @(negedge clock) begin
-		if (proc2Imem_command == BUS_LOAD) begin
-			recorded_response <= `SD Imem2proc_response;
-		end
-		else begin
-			recorded_response <= `SD 0;
-		end
-	end
-
+	assign recorded_response = (proc2Imem_command == BUS_LOAD)? Imem2proc_response:recorded_response;
 	assign Imem_ready = (recorded_response !=0) && (recorded_response == Imem2proc_tag);
-	assign proc2Imem_command = (!reset && PC_enable && current_state == READY)? BUS_LOAD : BUS_NONE;
+	assign proc2Imem_command = (!reset && PC_enable && current_state == READY && !if_mem_hazard)? BUS_LOAD : BUS_NONE;
 	assign if_packet_out.valid = Imem_ready;
 
 endmodule  // module if_stage
