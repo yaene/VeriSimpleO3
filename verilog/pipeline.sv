@@ -390,7 +390,7 @@ hazard_detection_unit hdu_0 (
 		.alloc_value_in_valid(rob_alloc_value_in_valid),
 		.alloc_mem_size(rob_alloc_mem_size),
 		.rs1_rob_tag(is_rs1_rob_tag),
-		.rs2_rob_tag(is_rs2_rob_tag),
+		.rs2_rob_tag(is_rs2_rob_tag)
 	);
 
 //////////////////////////////////////////////////
