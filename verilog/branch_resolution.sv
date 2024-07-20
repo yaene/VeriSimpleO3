@@ -5,17 +5,13 @@
 module branch_resolution_unit ( 
     input clock,
     input reset,
-    // Treat one branch only, IF will stall for second branch until the first is resolved
-    //input [`ROB_TAG_LEN-1:0] branch_rob_tag,
     input branch_detected,
     input take_branch, // assume speculation is all branch_not_taken
     input valid_branch,
-    // input maptable snapshot
 
     output branch_pending,
     output logic kill,
     output logic resolve
-    // output maptable recovery
 );
 
     parameter READY = 1'b0, PENDING = 1'b1;

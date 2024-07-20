@@ -361,6 +361,9 @@ hazard_detection_unit hdu_0 (
 		.valid_wb(rob_wr_valid),
 		.rd_wb(rob_wr_dest_reg),
 		.rob_entry_wb(wr_rob_tag),
+		.branch_detected(branch_detected),
+		.kill(kill),
+		.resolve(resolve),
 		//outputs
 		.maptable_packet_rs1(maptable_packet_rs1),
 		.maptable_packet_rs2(maptable_packet_rs2)
