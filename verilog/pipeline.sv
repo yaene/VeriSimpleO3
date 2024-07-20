@@ -72,7 +72,9 @@ module pipeline (
 
 );
 
-	// branch resolution unit outputs
+	// branch resolution unit
+	logic branch_detected;
+	logic valid_branch;
 	logic branch_pending;
 	logic kill;
 	logic resolve;
@@ -250,6 +252,8 @@ module pipeline (
 		.cdb_data(cdb_data),
 		.load_address(lb_address),
 		.load_rob_tag(lb_rob_tag),
+		.alloc_branch(branch_detected),
+		.kill(kill),
 		// outputs 
 		.full(rob_full),
 		.alloc_slot(rob_alloc_slot),
@@ -321,8 +325,6 @@ hazard_detection_unit hdu_0 (
 //             Branch Resolution                //
 //                                              //
 //////////////////////////////////////////////////
-	logic branch_detected;
-	logic valid_branch;
 	branch_resolution_unit bru_0 (
 		.clock(clock),
 		.reset(reset),

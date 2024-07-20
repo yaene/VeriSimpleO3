@@ -25,6 +25,9 @@ module rob (input clock,
            
             input [`XLEN-1:0] load_address,           // to check for any pending stores
             input [`ROB_TAG_LEN-1:0] load_rob_tag,    // rob entry of load to check for pending stores
+
+            input alloc_branch,
+            input kill,
             
             output full,                              // is ROB full?
             output [`ROB_TAG_LEN-1:0] alloc_slot,     // rob tag of new instruction
@@ -52,6 +55,8 @@ module rob (input clock,
     logic [`XLEN-1:0] alloc_value;
     logic alloc_value_ready;
     logic [`ROB_TAG_LEN-1:0] tag_tracking; // to track tags
+    logic [`ROB_TAG_LEN-1:0] branch_reg;
+    logic [`ROB_TAG_LEN-1:0] tag_clearing;
     
     ROB_ENTRY [ROB_SIZE:1] rob; // ROB entries
     
@@ -61,6 +66,7 @@ module rob (input clock,
             head = 1;
             tail = 1;
             tag_tracking = 1;
+            branch_reg = 0;
             for (int i = 1; i <= ROB_SIZE; i++) begin
                 rob[i] <= `EMPTY_ROB_ENTRY;
             end
@@ -90,6 +96,9 @@ module rob (input clock,
             rob[tail] <= '{`TRUE, NPC, inst, alloc_wr_mem, dest_reg,
             `XLEN'b0, alloc_value, alloc_store_dep, alloc_mem_size,
             alloc_value_ready, ~alloc_wr_mem};
+
+            if (alloc_branch) branch_reg <= tail;
+            else branch_reg <= branch_reg;
         end
         
         // clear entry of committed instruction
@@ -153,6 +162,19 @@ module rob (input clock,
         end
         else begin 
             pending_stores = `FALSE;
+        end
+    end
+
+    always_comb begin
+        if (kill) begin
+            tag_clearing = (branch_reg == ROB_SIZE) ? 1 : branch_reg + 1;
+            tail = branch_reg;
+            for (int i = 1; i < ROB_SIZE; i++) begin
+                if (tag_clearing != head) begin
+                    rob[tag_clearing] = `EMPTY_ROB_ENTRY;
+                    tag_clearing = (tag_clearing == ROB_SIZE) ? 1 : tag_clearing + 1;
+                end
+            end
         end
     end
 

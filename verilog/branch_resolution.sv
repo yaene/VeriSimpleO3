@@ -45,8 +45,8 @@ module branch_resolution_unit (
                 if (valid_branch) begin
                     if (take_branch) kill = `TRUE;
                     else resolve = `TRUE;
+                    state_next = READY;
                 end
-                state_next = READY;
         endcase
     end
 
