@@ -73,6 +73,7 @@ module pipeline (
 );
 
 	// hazard detection unit outputs
+	logic if_mem_hazard;
     logic if_enable;
     logic if_is_enable;
     logic if_is_flush; // branch misprediction
@@ -195,6 +196,7 @@ module pipeline (
 		.Imem2proc_data(mem2proc_data),
 		.Imem2proc_response(mem2proc_response),
 		.Imem2proc_tag(mem2proc_tag),
+		.if_mem_hazard(if_mem_hazard),
 		
 		// Outputs
 		.proc2Imem_addr(proc2Imem_addr),
@@ -299,6 +301,7 @@ hazard_detection_unit hdu_0 (
 	.acu_rd_mem(acu_ld_packet.valid),
 
 	// outputs
+	.if_mem_hazard(if_mem_hazard),
     .if_enable(if_enable),
     .if_is_enable(if_is_enable),
     .if_is_flush(if_is_flush), // branch misprediction

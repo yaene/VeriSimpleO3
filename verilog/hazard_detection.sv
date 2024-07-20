@@ -22,6 +22,7 @@ module hazard_detection_unit (
     input acu_wr_mem,
     input acu_rd_mem,
 
+    output if_mem_hazard,
     output if_enable,
     output if_is_enable,
     output if_is_flush, // branch misprediction
@@ -38,7 +39,7 @@ module hazard_detection_unit (
 
     logic is_stall;
     logic branch_in_exec;
-    logic if_mem_hazard;
+    // logic if_mem_hazard;
 
     assign is_stall = rob_full
         | (is_ld_st_inst & rs_ld_st_full)

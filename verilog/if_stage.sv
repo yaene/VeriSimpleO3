@@ -20,6 +20,7 @@ module if_stage(
 	input  [63:0] Imem2proc_data,          // Data coming back from instruction-memory
 	input  [3:0] Imem2proc_response,
 	input  [3:0] Imem2proc_tag,
+	input if_mem_hazard,
 
 	output logic [`XLEN-1:0] proc2Imem_addr,    // Address sent to Instruction memory
 	output logic [1:0] proc2Imem_command,
@@ -28,8 +29,7 @@ module if_stage(
 
 	// State Definitions
 	typedef enum logic [1:0] {
-		IDLE,
-		REQUEST,
+		READY,
 		MEM_WAIT
 	} state_t;
 
@@ -41,6 +41,7 @@ module if_stage(
 	logic [`XLEN-1:0] PC_plus_4;
 	logic [`XLEN-1:0] next_PC;
 	logic PC_enable;
+	logic Imem_ready;
 	
 	assign proc2Imem_addr = {PC_reg[`XLEN-1:3], 3'b0};
 
@@ -65,7 +66,7 @@ module if_stage(
 	// State Transition Logic
 	always_ff @(posedge clock) begin
 		if (reset) begin
-			current_state <= IDLE;
+			current_state <= READY;
 		end else begin
 			current_state <= next_state;
 		end
@@ -74,44 +75,19 @@ module if_stage(
 	// State Transition Conditions
 	always_comb begin
 		next_state = current_state;
-		proc2Imem_command = BUS_NONE;
-		if_packet_out.valid = 0;
 		case (current_state)
-			IDLE: begin
-				if (!reset && PC_enable) begin
-					proc2Imem_command = BUS_LOAD;
-					recorded_response = Imem2proc_response;
-					if (Imem2proc_response != Imem2proc_tag) begin
-						next_state = MEM_WAIT;
-					end
-					else begin
-						next_state = REQUEST;
-						if_packet_out.valid = 1;
-					end
+			READY: begin
+				if (!reset && PC_enable && !Imem_ready && !if_mem_hazard) begin
+					next_state = MEM_WAIT;
 				end
-			end
-			REQUEST: begin
-				if (PC_enable) begin
-					proc2Imem_command = BUS_LOAD;
-					recorded_response = Imem2proc_response;
-					if (Imem2proc_response != Imem2proc_tag) begin
-						next_state = MEM_WAIT;
-					end
-					else begin
-						if_packet_out.valid = 1;
-					end
-				end
-				else begin
-					next_state = IDLE;
-				end				
 			end
 			MEM_WAIT: begin
-				proc2Imem_command = BUS_NONE;
-				if (Imem2proc_tag == recorded_response) begin
-					next_state = REQUEST;
-					if_packet_out.valid = 1;
-				end
+				if (Imem_ready) begin
+					next_state = READY;
+				end			
 			end
+			default:
+				next_state = READY;
 		endcase
 	end
 
@@ -120,10 +96,23 @@ module if_stage(
 		if (reset) begin
 			PC_reg <= `SD 0;
 		end else begin
-			if (PC_enable && current_state != MEM_WAIT) begin
+			if (PC_enable && Imem_ready) begin
 				PC_reg <= `SD next_PC; // transition to next PC
 			end
 		end
 	end
+
+	always_ff @(negedge clock) begin
+		if (proc2Imem_command == BUS_LOAD) begin
+			recorded_response <= `SD Imem2proc_response;
+		end
+		else begin
+			recorded_response <= `SD 0;
+		end
+	end
+
+	assign Imem_ready = (recorded_response !=0) && (recorded_response == Imem2proc_tag);
+	assign proc2Imem_command = (!reset && PC_enable && current_state == READY)? BUS_LOAD : BUS_NONE;
+	assign if_packet_out.valid = Imem_ready;
 
 endmodule  // module if_stage
