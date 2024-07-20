@@ -238,7 +238,7 @@ module is_stage (
     output alloc_value_in_valid,               // whether store value is available at issue
 	output [2:0] alloc_mem_size,
     output [`ROB_TAG_LEN-1:0] rs1_rob_tag,
-	output [`ROB_TAG_LEN-1:0] rs2_rob_tag,
+	output [`ROB_TAG_LEN-1:0] rs2_rob_tag
 );
 
 	logic [`XLEN-1:0] regf_rs1_value;

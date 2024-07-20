@@ -109,7 +109,7 @@ module alu_execution_unit(
 
     output EX_WR_PACKET alu_output, // CDB data output from ALU execution unit
     output logic take_branch, // indicates whether the branch will be taken
-    output logic [`XLEN-1:0] branch_target_PC, // targeted branch PC when taking branch
+    output logic [`XLEN-1:0] branch_target_PC // targeted branch PC when taking branch
 );
     logic brcond_result;
     logic [`XLEN-1:0] opa, opb;
