@@ -10,6 +10,7 @@ module hazard_detection_unit (
     input is_valid_inst,
     input commit_wr_mem,
     input lb_read_mem,
+    input Dmem_wait,
     input is_branch,
     input alu_branch,
     input ex_take_branch,
@@ -46,7 +47,7 @@ module hazard_detection_unit (
         | (~is_ld_st_inst & rs_alu_full)
         | branch_in_exec;
 
-    assign if_mem_hazard = commit_wr_mem | lb_read_mem;
+    assign if_mem_hazard = commit_wr_mem | (lb_read_mem && ~Dmem_wait);
 
     assign rs_ld_st_enable = ~is_stall & is_valid_inst & is_ld_st_inst;
     assign rs_alu_enable = ~is_stall & is_valid_inst & ~is_ld_st_inst;

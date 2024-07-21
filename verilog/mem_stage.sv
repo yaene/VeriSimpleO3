@@ -21,6 +21,8 @@ module mem_stage(
 	input         reset,              // system reset
 
 	input  [`XLEN-1:0] Dmem2proc_data,	// input from system
+	input [3:0] Dmem2proc_response,
+	input [3:0] Dmem2proc_tag,
 
 
 	input LB_PACKET lb_packet_in,			// from load buffer
@@ -29,7 +31,8 @@ module mem_stage(
 	input COMMIT_PACKET  cmt_packet_in,	// from commit stage
 	
 	
-	output mem_busy,					//to load buffer
+	output mem_busy,					// to load buffer
+	output Dmem_wait,					// to load buffer
 	
 	output EX_WR_PACKET lb_ex_packet_out,
 	output logic [1:0] proc2Dmem_command,
@@ -39,8 +42,48 @@ module mem_stage(
 );
 
 	logic [`XLEN-1:0] mem_result_out;
+	// State Definitions
+	typedef enum logic [1:0] {
+		READY,
+		MEM_WAIT
+	} Dmem_state;
+	Dmem_state current_state, next_state;
+	logic [3:0] recorded_response;
+	logic Dmem_ready;
+
+	// State Transition Logic
+	always_ff @(posedge clock) begin
+		if (reset) begin
+			current_state <= READY;
+		end else begin
+			current_state <= next_state;
+		end
+	end
+
+	// State Transition Conditions
+	always_comb begin
+		next_state = current_state;
+		case (current_state)
+			READY: begin
+				if (!reset && !Dmem_ready && proc2Dmem_command == BUS_LOAD) begin
+					next_state = MEM_WAIT;
+				end
+			end
+			MEM_WAIT: begin
+				if (Dmem_ready) begin
+					next_state = READY;
+				end			
+			end
+			default:
+				next_state = READY;
+		endcase
+	end	
+
+	assign recorded_response = (proc2Dmem_command == BUS_LOAD)? Dmem2proc_response:recorded_response;
+	assign Dmem_ready = (recorded_response !=0) && (recorded_response == Dmem2proc_tag);
+	assign Dmem_wait = (next_state == MEM_WAIT);	
 	
-	assign lb_ex_packet_out.valid = lb_packet_in.valid;
+	assign lb_ex_packet_out.valid = lb_packet_in.valid && Dmem_ready;
 	assign lb_ex_packet_out.NPC = lb_packet_in.NPC;
 	assign lb_ex_packet_out.inst = lb_packet_in.inst;
 	assign lb_ex_packet_out.rob_tag = lb_packet_in.rd_tag;
@@ -49,7 +92,7 @@ module mem_stage(
 	// Determine the command that must be sent to mem
 	assign proc2Dmem_command =
 	                        (cmt_packet_in.wr_mem & cmt_packet_in.valid) ? BUS_STORE :
-							(read_mem & lb_packet_in.valid) ? BUS_LOAD :
+							(read_mem & lb_packet_in.valid & current_state == READY) ? BUS_LOAD :
 	                        BUS_NONE;
 
 	assign proc2Dmem_size = proc2Dmem_command == BUS_LOAD 

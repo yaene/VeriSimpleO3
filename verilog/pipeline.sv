@@ -151,6 +151,7 @@ module pipeline (
 	logic [1:0]  proc2Dmem_command;
 	MEM_SIZE proc2Dmem_size;
 	logic mem_busy;
+	logic Dmem_wait;
 	
 	// Outputs from Commit-Stage  (These loop back to the register file in issue)
 	COMMIT_PACKET commit_packet;	
@@ -288,6 +289,7 @@ hazard_detection_unit hdu_0 (
 	.is_valid_inst(is_packet.valid),
 	.commit_wr_mem(commit_packet.wr_mem),
 	.lb_read_mem(lb_read_mem),
+	.Dmem_wait(Dmem_wait),
 	.is_branch(is_branch),
 	.alu_branch(alu_branch),
 	.ex_take_branch(ex_take_branch),
@@ -455,6 +457,7 @@ load_buffer load_buffer_0 (
 	.alloc_enable(`TRUE), 
 	.pending_stores(pending_stores),
 	.lb_exec_stall(lb_exec_stall),
+	.Dmem_wait(Dmem_wait),
 	// outputs
 	.lb_packet_out(lb_packet),
 	.full(lb_full),
@@ -470,13 +473,16 @@ mem_stage mem_stage_0 (// Inputs
 		.read_mem(lb_read_mem),
 		.cmt_packet_in(commit_packet),
 		.Dmem2proc_data(mem2proc_data[`XLEN-1:0]),
+		.Dmem2proc_response(mem2proc_response),
+		.Dmem2proc_tag(mem2proc_tag),
 		
 		// Outputs
 		.lb_ex_packet_out(lb_ex_packet),
 		.proc2Dmem_command(proc2Dmem_command),
 		.proc2Dmem_size(proc2Dmem_size),
 		.proc2Dmem_addr(proc2Dmem_addr),
-		.proc2Dmem_data(proc2Dmem_data)
+		.proc2Dmem_data(proc2Dmem_data),
+		.Dmem_wait(Dmem_wait)
 	);
 
 
