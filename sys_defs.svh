@@ -243,6 +243,12 @@ typedef union packed {
 //
 `define NOP 32'h00000013
 
+// Branch Prediction Unit
+`define PREDICTOR_SIZE_IN_BYTES 1024
+`define PREDICTOR_COUNTER_BITS 2
+`define PREDICTOR_COUNTER_ENTRIES (8*`PREDICTOR_SIZE_IN_BYTES / `PREDICTOR_COUNTER_BITS)
+`define PREDICTOR_INDEX_BITS $clog2(`PREDICTOR_COUNTER_ENTRIES)
+
 // ROB
 // assuming 4 bits will be enough (max 16 ROB entries)
 `define ROB_TAG_LEN 4
