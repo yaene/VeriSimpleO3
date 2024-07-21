@@ -157,7 +157,7 @@ module pipeline (
 	COMMIT_PACKET commit_packet;	
 
 	assign pipeline_completed_insts = {3'b0, commit_packet.valid};
-	assign pipeline_error_status =  
+	assign pipeline_error_status =  !commit_packet.valid ? NO_ERROR : 
 		commit_packet.inst == `WFI ? HALTED_ON_WFI :
 									 NO_ERROR;
 	
@@ -274,7 +274,7 @@ module pipeline (
 logic is_branch; 
 logic alu_branch;
 assign is_branch = is_packet.cond_branch | is_packet.uncond_branch;
-assign alu_branch = rs_alu_out.instr.cond_branch 
+assign alu_branch = rs_alu_out.valid & rs_alu_out.instr.cond_branch 
 		| rs_alu_out.instr.uncond_branch;
 
 hazard_detection_unit hdu_0 (

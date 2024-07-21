@@ -49,9 +49,11 @@ module hazard_detection_unit (
 
     assign if_mem_hazard = commit_wr_mem | (lb_read_mem && ~Dmem_wait);
 
-    assign rs_ld_st_enable = ~is_stall & is_valid_inst & is_ld_st_inst;
-    assign rs_alu_enable = ~is_stall & is_valid_inst & ~is_ld_st_inst;
-    assign rob_enable = ~is_stall & is_valid_inst;
+    assign is_enable = ~is_stall & is_valid_inst & ~ex_take_branch;
+
+    assign rs_ld_st_enable = is_enable & is_ld_st_inst;
+    assign rs_alu_enable = is_enable & ~is_ld_st_inst;
+    assign rob_enable = is_enable;
 
     assign if_enable = ~(if_mem_hazard | is_stall);
     assign if_is_enable = ~is_stall;
