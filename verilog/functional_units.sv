@@ -146,8 +146,8 @@ module alu_execution_unit(
 
      // ultimate "take branch" signal:
      // unconditional, or conditional and the condition is true
-    assign take_branch = ready_inst_entry.instr.uncond_branch
-                                  | (ready_inst_entry.instr.cond_branch & brcond_result);
+    assign take_branch = ready_inst_entry.ready & (ready_inst_entry.instr.uncond_branch
+                                  | (ready_inst_entry.instr.cond_branch & brcond_result));
     always_comb begin
         if (~ready_inst_entry.ready) begin
             alu_output = '0;
