@@ -243,6 +243,22 @@ typedef union packed {
 //
 `define NOP 32'h00000013
 
+// Branch Prediction Unit
+`define PREDICTOR_SIZE_IN_BYTES 1024
+`define PREDICTOR_COUNTER_BITS 2
+`define PREDICTOR_COUNTER_ENTRIES (8*`PREDICTOR_SIZE_IN_BYTES / `PREDICTOR_COUNTER_BITS)
+`define PREDICTOR_INDEX_BITS $clog2(`PREDICTOR_COUNTER_ENTRIES)
+
+`define BTB_ENTRIES 512
+`define BTB_INDEX_BITS $clog2(`BTB_ENTRIES)
+`define BTB_TAG_BITS  (`XLEN-`BTB_INDEX_BITS)
+
+typedef struct packed {
+	logic valid;
+	logic [`BTB_TAG_BITS-1:0] tag;
+	logic [`XLEN-1:0] target_pc;
+} BTB_ENTRY;
+
 // ROB
 // assuming 4 bits will be enough (max 16 ROB entries)
 `define ROB_TAG_LEN 4
@@ -297,6 +313,8 @@ typedef struct packed {
     INST  inst;  // fetched instruction out
 	logic [`XLEN-1:0] NPC; // PC + 4
 	logic [`XLEN-1:0] PC;  // PC 
+	logic predict_taken; // to detect mispredictions
+	logic [`XLEN-1:0] predict_target_pc;
 } IF_ID_PACKET;
 
 //////////////////////////////////////////////
@@ -323,6 +341,8 @@ typedef struct packed {
 	logic       wr_mem;        // does inst write memory?
 	logic       cond_branch;   // is inst a conditional branch?
 	logic       uncond_branch; // is inst an unconditional branch?
+	logic       predict_taken; // did we predict branch taken for this inst?
+	logic [`XLEN-1:0] predict_target_pc;
 	logic       halt;          // is this a halt?
 	logic       illegal;       // is this instruction illegal?
 	logic       csr_op;        // is this a CSR operation? (we only used this as a cheap way to get return code)
