@@ -90,15 +90,6 @@ module if_stage(
 			next_PC = predict_target_pc;
 		end
 	end
-	
-	// This register holds the PC value
-	// synopsys sync_set_reset "reset"
-	always_ff @(posedge clock) begin
-		if(reset)
-			PC_reg <= `SD 0;       // initial PC value is 0
-		else if(PC_enable)
-			PC_reg <= `SD next_PC; // transition to next PC
-	end  // always
 
 	// State Transition Logic
 	always_ff @(posedge clock) begin
@@ -119,7 +110,7 @@ module if_stage(
 				end
 			end
 			MEM_WAIT: begin
-				if (Imem_ready || ex_take_branch) begin
+				if (Imem_ready || branch_misprediction) begin
 					next_state = READY;
 				end			
 			end
@@ -133,7 +124,7 @@ module if_stage(
 		if (reset) begin
 			PC_reg <= `SD 0;
 		end else begin
-			if ((PC_enable && Imem_ready) || ex_take_branch) begin
+			if ((PC_enable && Imem_ready) || branch_misprediction) begin
 				PC_reg <= `SD next_PC; // transition to next PC
 			end
 		end
