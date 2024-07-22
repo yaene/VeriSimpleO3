@@ -134,7 +134,7 @@ module pipeline (
 	logic [`ROB_TAG_LEN-1:0] lb_rob_tag;
 	logic [`XLEN-1:0] lb_address;
 	LB_PACKET lb_packet;
-	logic ex_take_branch;
+	logic branch_misprediction;
 	logic [`XLEN-1:0]  ex_target_pc;
 
 
@@ -192,7 +192,10 @@ module pipeline (
 		.clock (clock),
 		.reset (reset),
 		.if_enable(if_enable),
+		.ex_pc(rs_alu_out.instr.PC),
+		.ex_branch(alu_branch),
 		.ex_take_branch(ex_take_branch),
+		.branch_misprediction(branch_misprediction),
 		.ex_target_pc(ex_target_pc),
 		.Imem2proc_data(mem2proc_data),
 		.Imem2proc_response(mem2proc_response),
@@ -292,7 +295,7 @@ hazard_detection_unit hdu_0 (
 	.Dmem_wait(Dmem_wait),
 	.is_branch(is_branch),
 	.alu_branch(alu_branch),
-	.ex_take_branch(ex_take_branch),
+	.branch_misprediction(branch_misprediction),
 	.alu_wr_valid(alu_wr_packet.valid),
 	.alu_wr_written(alu_written),
 	.lb_wr_valid(lb_wr_packet.valid),
@@ -428,8 +431,9 @@ alu_execution_unit alu_0 (
 	.ready_inst_entry(rs_alu_out),
 	// outputs
 	.alu_output(alu_packet),
+	.target_PC(ex_target_pc),
 	.take_branch(ex_take_branch),
-	.branch_target_PC(ex_target_pc)
+	.branch_misprediction(branch_misprediction)
 );
 
 	assign rs_acu_NPC_out        = rs_ld_st_out.instr.NPC;

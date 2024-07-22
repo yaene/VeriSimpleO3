@@ -106,13 +106,15 @@ module alu_execution_unit(
     input INSTR_READY_ENTRY ready_inst_entry, // output ready instruction entry from RS
 
     output EX_WR_PACKET alu_output, // CDB data output from ALU execution unit
-    output logic take_branch, // indicates whether the branch will be taken
-    output logic [`XLEN-1:0] branch_target_PC // targeted branch PC when taking branch
+    output logic [`XLEN-1:0] target_PC, // correct PC for branch misprediction
+    output logic take_branch,
+    output logic branch_misprediction // indicates whether branch was predicted to be taken
 );
     logic brcond_result;
     logic [`XLEN-1:0] opa, opb;
     ALU_FUNC func;
     logic [`XLEN-1:0] result;
+    logic [`XLEN-1:0] branch_target_PC;
 
     alu_info_extraction alu_extract(
         //Input
@@ -146,11 +148,19 @@ module alu_execution_unit(
 
      // ultimate "take branch" signal:
      // unconditional, or conditional and the condition is true
-    assign take_branch = ready_inst_entry.ready & (ready_inst_entry.instr.uncond_branch
-                                  | (ready_inst_entry.instr.cond_branch & brcond_result));
+    assign take_branch = ready_inst_entry.ready & 
+        (ready_inst_entry.instr.uncond_branch | 
+        (ready_inst_entry.instr.cond_branch & brcond_result));
+    assign branch_misprediction = ready_inst_entry.ready & 
+        ((ready_inst_entry.instr.predict_taken ^ take_branch) |
+         (take_branch & (ready_inst_entry.instr.predict_target_pc != branch_target_PC))
+        );
+    assign target_PC = take_branch ? branch_target_PC : alu_output.NPC;
     always_comb begin
         if (~ready_inst_entry.ready) begin
-            alu_output = '0;
+            alu_output.valid = 0;
+            alu_output.value = 0;
+            alu_output.rob_tag = 0;
             branch_target_PC = 0;
         end
         else if (take_branch) begin

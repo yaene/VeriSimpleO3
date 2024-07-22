@@ -13,7 +13,7 @@ module hazard_detection_unit (
     input Dmem_wait,
     input is_branch,
     input alu_branch,
-    input ex_take_branch,
+    input branch_misprediction,
     input alu_wr_valid,
     input alu_wr_written,
     input lb_wr_valid,
@@ -26,7 +26,7 @@ module hazard_detection_unit (
     output if_mem_hazard,
     output if_enable,
     output if_is_enable,
-    output if_is_flush, // branch misprediction
+    output if_is_flush, 
     output rob_enable,
     output rs_ld_st_enable,
 	output rs_ld_exec_stall,
@@ -40,7 +40,8 @@ module hazard_detection_unit (
 
     logic is_stall;
     logic branch_in_exec;
-    // logic if_mem_hazard;
+    logic if_mem_hazard;
+    logic branch_misprediction;
 
     assign is_stall = rob_full
         | (is_ld_st_inst & rs_ld_st_full)
@@ -49,7 +50,7 @@ module hazard_detection_unit (
 
     assign if_mem_hazard = commit_wr_mem | (lb_read_mem && ~Dmem_wait);
 
-    assign is_enable = ~is_stall & is_valid_inst & ~ex_take_branch;
+    assign is_enable = ~is_stall & is_valid_inst & ~branch_misprediction;
 
     assign rs_ld_st_enable = is_enable & is_ld_st_inst;
     assign rs_alu_enable = is_enable & ~is_ld_st_inst;
@@ -57,7 +58,7 @@ module hazard_detection_unit (
 
     assign if_enable = ~(if_mem_hazard | is_stall);
     assign if_is_enable = ~is_stall;
-    assign if_is_flush = ex_take_branch | (if_mem_hazard & ~is_stall);
+    assign if_is_flush = branch_misprediction | (if_mem_hazard & ~is_stall);
 
     assign alu_wr_enable = ~alu_wr_valid | alu_wr_written;
     assign lb_wr_enable = ~lb_wr_valid | lb_wr_written;
