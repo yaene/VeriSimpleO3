@@ -3,24 +3,24 @@
 module bpu_testbench();
     logic clock;
     logic reset;
-    logic [`XLEN-1:0] PC;
-    logic [`XLEN-1:0] ex_PC; 
+    logic [`XLEN-1:0] pc;
+    logic [`XLEN-1:0] ex_pc; 
     logic ex_taken;
     logic ex_branch;
-    logic [`XLEN-1:0] ex_target_PC;
+    logic [`XLEN-1:0] ex_target_pc;
     logic predict_taken;
-    logic [`XLEN-1:0] predict_target_PC;
+    logic [`XLEN-1:0] predict_target_pc;
 
     branch_prediction_unit bpu_0 (
         .clock (clock),
         .reset (reset),
-        .PC(PC),
-        .ex_PC(ex_PC),
+        .pc(pc),
+        .ex_pc(ex_pc),
         .ex_taken(ex_taken),
         .ex_branch(ex_branch),
-        .ex_target_PC(ex_target_PC),
+        .ex_target_pc(ex_target_pc),
         .predict_taken(predict_taken),
-        .predict_target_PC(predict_target_PC)
+        .predict_target_pc(predict_target_pc)
     );
 
     always begin
@@ -49,9 +49,9 @@ module bpu_testbench();
 
         @(negedge clock)
         reset = 0;
-        PC = 32'b1000000000000000;
-        ex_PC = PC;
-        ex_target_PC = 10;
+        pc = 32'b1000000000000000;
+        ex_pc = pc;
+        ex_target_pc = 10;
         ex_taken = 0;
         ex_branch = 0;
 
@@ -65,25 +65,25 @@ module bpu_testbench();
         // second time in BTB, predict taken
         // should saturate in positive direction
         CHECK_VAL("#1 predict taken", predict_taken, 1);
-        CHECK_VAL("#1 predicted PC", predict_target_PC, ex_target_PC);
-        PC = 0;
+        CHECK_VAL("#1 predicted pc", predict_target_pc, ex_target_pc);
+        pc = 0;
         ex_taken = 0;
 
         @(negedge clock)
         // BTB entry tag mismatch
         CHECK_VAL("#2 predict taken", predict_taken, 0);
         ex_taken = 1;
-        ex_PC = 0;
-        ex_target_PC = 5;
+        ex_pc = 0;
+        ex_target_pc = 5;
 
         @(negedge clock)
         CHECK_VAL("#3 predict taken", predict_taken, 1);
-        CHECK_VAL("#3 predicted PC", predict_target_PC, 5);
+        CHECK_VAL("#3 predicted pc", predict_target_pc, 5);
         ex_taken = 0;
 
         @(negedge clock)
         CHECK_VAL("#4 predict taken", predict_taken, 1);
-        CHECK_VAL("#4 predicted PC", predict_target_PC, 5);
+        CHECK_VAL("#4 predicted pc", predict_target_pc, 5);
 
         @(negedge clock)
         CHECK_VAL("#5 predict taken", predict_taken, 0);

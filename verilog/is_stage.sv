@@ -244,6 +244,8 @@ module is_stage (
     assign id_packet_out.inst = if_id_packet_in.inst;
     assign id_packet_out.NPC  = if_id_packet_in.NPC;
     assign id_packet_out.PC   = if_id_packet_in.PC;
+	assign id_packet_out.predict_taken = if_id_packet_in.predict_taken;
+	assign id_packet_out.predict_target_pc = if_id_packet_in.predict_target_pc;
 
 	assign is_ld_st_inst = id_packet_out.rd_mem || id_packet_out.wr_mem;
 

@@ -256,7 +256,7 @@ typedef union packed {
 typedef struct packed {
 	logic valid;
 	logic [`BTB_TAG_BITS-1:0] tag;
-	logic [`XLEN-1:0] target_PC;
+	logic [`XLEN-1:0] target_pc;
 } BTB_ENTRY;
 
 // ROB
@@ -313,6 +313,8 @@ typedef struct packed {
     INST  inst;  // fetched instruction out
 	logic [`XLEN-1:0] NPC; // PC + 4
 	logic [`XLEN-1:0] PC;  // PC 
+	logic predict_taken; // to detect mispredictions
+	logic [`XLEN-1:0] predict_target_pc;
 } IF_ID_PACKET;
 
 //////////////////////////////////////////////
@@ -339,6 +341,8 @@ typedef struct packed {
 	logic       wr_mem;        // does inst write memory?
 	logic       cond_branch;   // is inst a conditional branch?
 	logic       uncond_branch; // is inst an unconditional branch?
+	logic       predict_taken; // did we predict branch taken for this inst?
+	logic [`XLEN-1:0] predict_target_pc;
 	logic       halt;          // is this a halt?
 	logic       illegal;       // is this instruction illegal?
 	logic       csr_op;        // is this a CSR operation? (we only used this as a cheap way to get return code)
