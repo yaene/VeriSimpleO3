@@ -7,7 +7,9 @@ module bpu_testbench();
     logic [`XLEN-1:0] ex_PC; 
     logic ex_taken;
     logic ex_branch;
+    logic [`XLEN-1:0] ex_target_PC;
     logic predict_taken;
+    logic [`XLEN-1:0] predict_target_PC;
 
     branch_prediction_unit bpu_0 (
         .clock (clock),
@@ -16,7 +18,9 @@ module bpu_testbench();
         .ex_PC(ex_PC),
         .ex_taken(ex_taken),
         .ex_branch(ex_branch),
-        .predict_taken(predict_taken)
+        .ex_target_PC(ex_target_PC),
+        .predict_taken(predict_taken),
+        .predict_target_PC(predict_target_PC)
     );
 
     always begin
@@ -45,33 +49,51 @@ module bpu_testbench();
 
         @(negedge clock)
         reset = 0;
-        PC = 0;
-        ex_PC = 0;
+        PC = 32'b1000000000000000;
+        ex_PC = PC;
+        ex_target_PC = 10;
         ex_taken = 0;
         ex_branch = 0;
 
         @(negedge clock)
-        CHECK_VAL("#0 predict taken", predict_taken, 1);
+        // BTB empty so fall through
+        CHECK_VAL("#0 predict taken", predict_taken, 0);
 
         ex_branch = 1;
         ex_taken  = 1;
         @(negedge clock)
+        // second time in BTB, predict taken
         // should saturate in positive direction
         CHECK_VAL("#1 predict taken", predict_taken, 1);
+        CHECK_VAL("#1 predicted PC", predict_target_PC, ex_target_PC);
+        PC = 0;
         ex_taken = 0;
 
         @(negedge clock)
-        CHECK_VAL("#2 predict taken", predict_taken, 1);
+        // BTB entry tag mismatch
+        CHECK_VAL("#2 predict taken", predict_taken, 0);
+        ex_taken = 1;
+        ex_PC = 0;
+        ex_target_PC = 5;
 
         @(negedge clock)
-        CHECK_VAL("#3 predict taken", predict_taken, 0);
+        CHECK_VAL("#3 predict taken", predict_taken, 1);
+        CHECK_VAL("#3 predicted PC", predict_target_PC, 5);
+        ex_taken = 0;
 
         @(negedge clock)
-        CHECK_VAL("#4 predict taken", predict_taken, 0);
+        CHECK_VAL("#4 predict taken", predict_taken, 1);
+        CHECK_VAL("#4 predicted PC", predict_target_PC, 5);
+
+        @(negedge clock)
+        CHECK_VAL("#5 predict taken", predict_taken, 0);
+
+        @(negedge clock)
+        CHECK_VAL("#6 predict taken", predict_taken, 0);
 
         @(negedge clock)
         // should saturate in negative direction 
-        CHECK_VAL("#5 predict taken", predict_taken, 0);
+        CHECK_VAL("#7 predict taken", predict_taken, 0);
 
         $display("Simulation Success!");
         $finish;

@@ -249,6 +249,16 @@ typedef union packed {
 `define PREDICTOR_COUNTER_ENTRIES (8*`PREDICTOR_SIZE_IN_BYTES / `PREDICTOR_COUNTER_BITS)
 `define PREDICTOR_INDEX_BITS $clog2(`PREDICTOR_COUNTER_ENTRIES)
 
+`define BTB_ENTRIES 512
+`define BTB_INDEX_BITS $clog2(`BTB_ENTRIES)
+`define BTB_TAG_BITS  (`XLEN-`BTB_INDEX_BITS)
+
+typedef struct packed {
+	logic valid;
+	logic [`BTB_TAG_BITS-1:0] tag;
+	logic [`XLEN-1:0] target_PC;
+} BTB_ENTRY;
+
 // ROB
 // assuming 4 bits will be enough (max 16 ROB entries)
 `define ROB_TAG_LEN 4
