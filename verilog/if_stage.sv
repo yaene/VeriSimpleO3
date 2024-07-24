@@ -43,17 +43,27 @@ module if_stage(
 	logic [`IQ_INDEX_SIZE-1:0] tail;
 	logic [3:0] current_response;
 	logic IQ_full;
+	logic [`IQ_SIZE-1:0] ready;
 	always_ff @(posedge clock) begin
 		if (reset || branch_misprediction)begin
 			head <= '0;
 			tail <= '0;
+			for (int i = 0; i < `IQ_SIZE; ++i) begin
+			    ready[i] <= 0;
+			end
 		end
 		else begin
 			if (inst_queue[tail].recorded_response != 0) begin
 				tail <= tail + 1;
 			end
+			for (int i = 0; i < `IQ_SIZE; ++i) begin
+			    ready[i] <= inst_queue[i].if_packet.valid;
+			end
 			if (inst_queue[head].if_packet.valid) begin
-				head <= head + 1;
+			    if(PC_enable) begin
+			        ready[head] = 0;
+				    head = head + 1;
+				end
 			end
 		end
 	end
@@ -89,7 +99,7 @@ module if_stage(
 		inst_queue[tail].if_packet.predict_target_pc = predict_target_pc;
 		proc2Imem_addr = {PC_reg[`XLEN-1:3], 3'b0};
 		for (int i = 0; i < `IQ_SIZE; ++i) begin
-			if (Imem2proc_tag !=0 && Imem2proc_tag == inst_queue[i].recorded_response) begin
+			if (!ready[i] && Imem2proc_tag !=0 && Imem2proc_tag == inst_queue[i].recorded_response) begin
 			    if (!if_mem_hazard) begin
                     inst_queue[i].if_packet.valid = 1;
                     inst_queue[i].if_packet.inst = inst_queue[i].if_packet.PC[2] ? Imem2proc_data[63:32] : Imem2proc_data[31:0];
