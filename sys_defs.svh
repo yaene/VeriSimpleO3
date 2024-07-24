@@ -317,6 +317,14 @@ typedef struct packed {
 	logic [`XLEN-1:0] predict_target_pc;
 } IF_ID_PACKET;
 
+typedef struct packed {
+	IF_ID_PACKET if_packet;
+	logic [3:0] recorded_response;
+} IQ_PACKET;
+
+`define IQ_SIZE 16 // size of instruction queue
+`define IQ_INDEX_SIZE $clog2(`IQ_SIZE) // size of instruction queue index (head/tail)
+
 //////////////////////////////////////////////
 //
 // ID Packets:
