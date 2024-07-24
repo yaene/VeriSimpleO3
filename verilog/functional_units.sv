@@ -11,9 +11,9 @@ module alu(
     wire        [2*`XLEN-1:0] unsigned_mul;
     assign signed_opa = opa;
     assign signed_opb = opb;
-    // assign signed_mul = signed_opa * signed_opb;
-    // assign unsigned_mul = opa * opb;
-    // assign mixed_mul = signed_opa * opb;
+    assign signed_mul = signed_opa * signed_opb;
+    assign unsigned_mul = opa * opb;
+    assign mixed_mul = signed_opa * opb;
 
     always_comb begin
         case (func)
@@ -27,10 +27,10 @@ module alu(
             ALU_SRL:      result = opa >> opb[4:0];
             ALU_SLL:      result = opa << opb[4:0];
             ALU_SRA:      result = signed_opa >>> opb[4:0]; // arithmetic from logical shift
-            // ALU_MUL:      result = signed_mul[`XLEN-1:0];
-            // ALU_MULH:     result = signed_mul[2*`XLEN-1:`XLEN];
-            // ALU_MULHSU:   result = mixed_mul[2*`XLEN-1:`XLEN];
-            // ALU_MULHU:    result = unsigned_mul[2*`XLEN-1:`XLEN];
+//            ALU_MUL:      result = signed_mul[`XLEN-1:0];
+//            ALU_MULH:     result = signed_mul[2*`XLEN-1:`XLEN];
+//            ALU_MULHSU:   result = mixed_mul[2*`XLEN-1:`XLEN];
+//            ALU_MULHU:    result = unsigned_mul[2*`XLEN-1:`XLEN];
 
             default:      result = `XLEN'hfacebeec;  // here to prevent latches
         endcase
@@ -239,6 +239,186 @@ module address_calculation_unit(
         end else begin
             store_result.valid = 0;
             load_buffer_packet.valid = 0;
+        end
+    end
+
+endmodule
+
+module mult_stage #(parameter num_stages = 4)(
+                    input clock, reset, start,
+                    input [`XLEN-1:0] product_in, mplier_in, mcand_in,
+
+                    output logic done,
+                    output logic [`XLEN-1:0] product_out, mplier_out, mcand_out
+                );
+
+
+
+    logic [`XLEN-1:0] prod_in_reg, partial_prod_reg;
+    logic [`XLEN-1:0] partial_product, next_mplier, next_mcand;
+
+    parameter num_each = `XLEN/num_stages;
+    assign product_out = prod_in_reg + partial_prod_reg;
+
+    assign partial_product = mplier_in[(num_each-1):0] * mcand_in;
+
+    assign next_mplier = {{num_each{1'b0}}, mplier_in[`XLEN-1:num_stages]};
+    assign next_mcand = {mcand_in[`XLEN-1-num_each:0],{num_each{1'b0}}};
+
+    always_ff @(posedge clock) begin
+        prod_in_reg      <= product_in;
+        partial_prod_reg <= partial_product;
+        mplier_out       <= next_mplier;
+        mcand_out        <= next_mcand;
+    end
+
+    // synopsys sync_set_reset "reset"
+    always_ff @(posedge clock) begin
+        if(reset)
+            done <= 1'b0;
+        else
+            done <= start;
+    end
+
+endmodule
+
+module mult  #(parameter num_stages = 4)(
+                input clock, reset,
+                input [`XLEN-1:0] mcand, mplier,
+                input start,                
+                output [`XLEN-1:0] product,
+                output done
+            );
+  logic [`XLEN-1:0] mcand_out, mplier_out;
+  logic [((num_stages-1)*`XLEN)-1:0] internal_products, internal_mcands, internal_mpliers;
+  logic [(num_stages-2):0] internal_dones;
+
+    mult_stage #(.num_stages(num_stages)) mstage [(num_stages-1):0] (
+        .clock(clock),
+        .reset(reset),
+        .product_in({internal_products,`XLEN'h0}),
+        .mplier_in({internal_mpliers,mplier}),
+        .mcand_in({internal_mcands,mcand}),
+        .start({internal_dones,start}),
+        .product_out({product,internal_products}),
+        .mplier_out({mplier_out,internal_mpliers}),
+        .mcand_out({mcand_out,internal_mcands}),
+        .done({done,internal_dones})
+    );
+
+endmodule
+
+module MultiplierControl(
+    input wire clock,
+    input wire reset,
+    input INSTR_READY_ENTRY ready_inst_entry,
+    input wire new_mul_request,   // new mul entry
+    input wire mult_done,          // previous nult done
+    output reg start,              // able to start
+    output MULT_STATE current_state,
+    output INSTR_READY_ENTRY current_inst_entry,
+    output MULT_STATE next_state
+);
+
+    always_ff @(posedge clock or posedge reset) begin
+        if (reset) begin
+            current_state <= IDLE;
+        end else begin
+            current_state <= next_state;
+        end
+    end
+    
+    always_comb begin
+        next_state = current_state;
+        start = 0;
+        case (current_state)
+            IDLE: begin
+                if (new_mul_request) begin
+                    start = 1;
+                    next_state = BUSY;
+                    current_inst_entry = ready_inst_entry;
+                end
+            end
+            BUSY: begin
+                if (mult_done) begin
+                    next_state = IDLE;
+                    current_inst_entry = 0;
+                end
+            end
+        endcase
+    end
+endmodule
+
+module pipelined_multiplication_unit(
+    input INSTR_READY_ENTRY ready_inst_entry, // output ready instruction entry from RS
+    input clock,
+    input reset,
+    input previous_done, // indicates the previous multiplication is done
+
+    output EX_WR_PACKET mult_output,
+    output done, //indicates whether the multiplication is done
+    output  [`XLEN-1:0] rs_mult_NPC_out,
+    output  [31:0] rs_mult_IR_out,
+    output rs_mult_valid_inst_out
+);
+    logic [`XLEN-1:0] opa, opb;
+    ALU_FUNC func;
+    logic clock, previous_done, start, reset;
+    logic done;
+    logic [`XLEN-1:0] result;
+    INSTR_READY_ENTRY current_inst_entry;
+    
+    alu_info_extraction operands_extract(
+        //Input
+        .ready_inst_entry(ready_inst_entry),
+        //Outputs
+        .opa(opa),
+        .opb(opb),
+        .func(func)
+    );
+    
+    MultiplierControl mult_control(
+        .clock(clock),
+        .reset(reset),
+        .ready_inst_entry(ready_inst_entry),
+        .new_mul_request(ready_inst_entry.ready),
+        .mult_done(previous_done),   
+        .start(start),
+        .current_state(current_state),
+        .current_inst_entry(current_inst_entry),
+        .next_state(next_state)
+    );  
+
+    mult mult_execute(
+        //Inputs
+        .clock(clock),
+        .reset(reset),
+        .mcand(opa),
+        .mplier(opb),
+        .start(start),
+        //Outputs
+        .product(result),
+        .done(done)
+    );
+//    assign mult_output.inst = current_inst_entry.instr.inst;
+//    assign mult_output.NPC = current_inst_entry.instr.NPC;
+    assign rs_mult_NPC_out        = current_inst_entry.instr.NPC ;
+	assign rs_mult_IR_out         = current_inst_entry.instr.inst;
+	assign rs_mult_valid_inst_out = current_inst_entry.instr.valid;
+    always_comb begin
+        if (~done) begin
+            mult_output.valid = 0;
+            mult_output.value = 0;
+            mult_output.rob_tag = 0;
+            mult_output.inst = 0;
+            mult_output.NPC = 0;
+        end
+        else begin
+            mult_output.valid = 1;
+            mult_output.value = result;
+            mult_output.rob_tag = current_inst_entry.rd_tag;
+            mult_output.inst = current_inst_entry.instr.inst;
+            mult_output.NPC = current_inst_entry.instr.NPC;
         end
     end
 
