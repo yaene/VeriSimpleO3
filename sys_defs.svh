@@ -243,17 +243,36 @@ typedef union packed {
 //
 `define NOP 32'h00000013
 
+// Branch Prediction Unit
+`define PREDICTOR_SIZE_IN_BYTES 1024
+`define PREDICTOR_COUNTER_BITS 2
+`define PREDICTOR_COUNTER_ENTRIES (8*`PREDICTOR_SIZE_IN_BYTES / `PREDICTOR_COUNTER_BITS)
+`define PREDICTOR_INDEX_BITS $clog2(`PREDICTOR_COUNTER_ENTRIES)
+
+`define BTB_ENTRIES 512
+`define BTB_INDEX_BITS $clog2(`BTB_ENTRIES)
+`define BTB_TAG_BITS  (`XLEN-`BTB_INDEX_BITS)
+
+typedef struct packed {
+	logic valid;
+	logic [`BTB_TAG_BITS-1:0] tag;
+	logic [`XLEN-1:0] target_pc;
+} BTB_ENTRY;
+
 // ROB
 // assuming 4 bits will be enough (max 16 ROB entries)
 `define ROB_TAG_LEN 4
 
 typedef struct packed {
 	logic valid; // needed to distinguish empty entries
+	logic [`XLEN-1:0] NPC; 
+	INST inst; 
 	logic wr_mem; // is a store
 	logic [4:0] dest_reg; // destination register
 	logic [`XLEN-1:0] dest_addr; // destination address (store)
 	logic [`XLEN-1:0] value; // instruction result
 	logic [`ROB_TAG_LEN-1:0] store_dep;
+	logic [2:0] mem_size;
 	logic value_ready;
 	logic address_ready;
 } ROB_ENTRY;
@@ -275,6 +294,8 @@ typedef struct packed {
 
 typedef struct packed{
     logic valid;
+	logic [`XLEN-1:0] NPC;
+	INST inst;
     logic [`XLEN-1:0] address;
     logic [`ROB_TAG_LEN-1:0] rd_tag;
     logic [2:0] mem_size;
@@ -292,6 +313,8 @@ typedef struct packed {
     INST  inst;  // fetched instruction out
 	logic [`XLEN-1:0] NPC; // PC + 4
 	logic [`XLEN-1:0] PC;  // PC 
+	logic predict_taken; // to detect mispredictions
+	logic [`XLEN-1:0] predict_target_pc;
 } IF_ID_PACKET;
 
 //////////////////////////////////////////////
@@ -318,6 +341,8 @@ typedef struct packed {
 	logic       wr_mem;        // does inst write memory?
 	logic       cond_branch;   // is inst a conditional branch?
 	logic       uncond_branch; // is inst an unconditional branch?
+	logic       predict_taken; // did we predict branch taken for this inst?
+	logic [`XLEN-1:0] predict_target_pc;
 	logic       halt;          // is this a halt?
 	logic       illegal;       // is this instruction illegal?
 	logic       csr_op;        // is this a CSR operation? (we only used this as a cheap way to get return code)
@@ -325,16 +350,12 @@ typedef struct packed {
 } ID_EX_PACKET;
 
 typedef struct packed {
-	logic [`XLEN-1:0] alu_result; // alu_result
-	logic [`XLEN-1:0] NPC; //pc + 4
-	logic             take_branch; // is this a taken branch?
-	//pass throughs from decode stage
-	logic [`XLEN-1:0] rs2_value;
-	logic             rd_mem, wr_mem;
-	logic [4:0]       dest_reg_idx;
-	logic             halt, illegal, csr_op, valid;
-	logic [2:0]       mem_size; // byte, half-word or word
-} EX_MEM_PACKET;
+	logic valid;
+	logic [`XLEN-1:0] NPC;
+	INST inst;
+    logic [`ROB_TAG_LEN-1:0] rob_tag; // identifies instruction that produced value
+    logic [`XLEN-1:0] value;
+} EX_WR_PACKET;
 
 typedef struct packed {
 	logic valid;
@@ -344,11 +365,23 @@ typedef struct packed {
     logic [`ROB_TAG_LEN-1:0] rs2_tag;
     logic rs1_ready;
     logic rs2_ready;
-    logic [`XLEN:0] rs1_value;
-    logic [`XLEN:0] rs2_value;
-	logic [`BIRTHDAY_SIZE-1:0]birthday;
+    logic [`XLEN-1:0] rs1_value;
+    logic [`XLEN-1:0] rs2_value;
+	logic [`BIRTHDAY_SIZE-1:0] birthday;
 	ID_EX_PACKET instr;
 } INSTR_READY_ENTRY;
 
+typedef struct packed {
+	logic valid;
+	logic [`XLEN-1:0] NPC;
+	INST inst;
+	logic [`XLEN-1:0] data_out;
+	logic [2:0] mem_size;
+	logic wr_mem;
+	logic [`XLEN-1:0] mem_address;
+	logic [4:0] reg_wr_idx_out;
+	logic  reg_wr_en_out;
+	logic [`ROB_TAG_LEN-1:0] rob_tag;
+} COMMIT_PACKET;
 
 `endif // __SYS_DEFS_VH__

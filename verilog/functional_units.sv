@@ -105,14 +105,16 @@ endmodule
 module alu_execution_unit(
     input INSTR_READY_ENTRY ready_inst_entry, // output ready instruction entry from RS
 
-    output CDB_DATA alu_cdb_output, // CDB data output from ALU execution unit
-    output logic take_branch, // indicates whether the branch will be taken
-    output logic [`XLEN-1:0] branch_target_PC // targeted branch PC when taking branch
+    output EX_WR_PACKET alu_output, // CDB data output from ALU execution unit
+    output logic [`XLEN-1:0] target_PC, // correct PC for branch misprediction
+    output logic take_branch,
+    output logic branch_misprediction // indicates whether branch was predicted to be taken
 );
     logic brcond_result;
     logic [`XLEN-1:0] opa, opb;
     ALU_FUNC func;
     logic [`XLEN-1:0] result;
+    logic [`XLEN-1:0] branch_target_PC;
 
     alu_info_extraction alu_extract(
         //Input
@@ -141,24 +143,43 @@ module alu_execution_unit(
         .cond(brcond_result)
     );
 
+    assign alu_output.inst = ready_inst_entry.instr.inst;
+    assign alu_output.NPC = ready_inst_entry.instr.NPC;
+
      // ultimate "take branch" signal:
      // unconditional, or conditional and the condition is true
-    assign take_branch = ready_inst_entry.instr.uncond_branch
-                                  | (ready_inst_entry.instr.cond_branch & brcond_result);
+    assign take_branch = ready_inst_entry.ready & 
+        (ready_inst_entry.instr.uncond_branch | 
+        (ready_inst_entry.instr.cond_branch & brcond_result));
+    assign branch_misprediction = ready_inst_entry.ready & 
+        ((ready_inst_entry.instr.predict_taken ^ take_branch) |
+         (take_branch & (ready_inst_entry.instr.predict_target_pc != branch_target_PC))
+        );
+    assign target_PC = take_branch ? branch_target_PC : alu_output.NPC;
     always_comb begin
-        if (take_branch) begin
-            branch_target_PC = result;
-            alu_cdb_output = '0;
+        if (~ready_inst_entry.ready) begin
+            alu_output.valid = 0;
+            alu_output.value = 0;
+            alu_output.rob_tag = 0;
+            branch_target_PC = 0;
         end
-        else if ((~ready_inst_entry.instr.uncond_branch) && (~ready_inst_entry.instr.cond_branch)) begin
+        else if (take_branch) begin
+            branch_target_PC = result;
+            alu_output.valid = 1;
+            alu_output.value = ready_inst_entry.instr.NPC;
+            alu_output.rob_tag = ready_inst_entry.rd_tag;
+        end
+        else if (~ready_inst_entry.instr.uncond_branch && (~ready_inst_entry.instr.cond_branch)) begin
             branch_target_PC = 0; //no matter what, since not take_branch
-            alu_cdb_output.valid = 1;
-            alu_cdb_output.value = result;
-            alu_cdb_output.rob_tag = ready_inst_entry.rd_tag;
+            alu_output.valid = 1;
+            alu_output.value = result;
+            alu_output.rob_tag = ready_inst_entry.rd_tag;
         end
         else begin // not take branch, but branch instructions
             branch_target_PC = 0;
-            alu_cdb_output = '0;
+            alu_output.valid = 1;
+            alu_output.value = 0;
+            alu_output.rob_tag = ready_inst_entry.rd_tag;
         end
 
     end
@@ -167,7 +188,7 @@ endmodule // alu
 module address_calculation_unit(
     input INSTR_READY_ENTRY ready_inst_entry, // output ready instruction entry from RS
 
-    output CDB_DATA store_result, // output address result for writing, for store instruction
+    output EX_WR_PACKET store_result, // output address result for writing, for store instruction
     output LB_PACKET load_buffer_packet // output packet for load buffer usage
 );
     logic [`XLEN-1:0] opa;
@@ -194,128 +215,31 @@ module address_calculation_unit(
         .result(result)
     );
 
+    assign store_result.NPC = ready_inst_entry.instr.NPC;
+    assign load_buffer_packet.NPC = ready_inst_entry.instr.NPC;
+    assign store_result.inst = ready_inst_entry.instr.inst;
+    assign load_buffer_packet.inst = ready_inst_entry.instr.inst;
+
     always_comb begin
         load_buffer_packet.address = result;
         load_buffer_packet.rd_tag = ready_inst_entry.rd_tag;
         load_buffer_packet.mem_size = ready_inst_entry.instr.inst.r.funct3;
         store_result.value = result;
         store_result.rob_tag = ready_inst_entry.rd_tag;
-        if (ready_inst_entry.instr.rd_mem) begin //load
+        if (ready_inst_entry.ready) begin
+            if (ready_inst_entry.instr.rd_mem) begin //load
+                store_result.valid = 0;
+                load_buffer_packet.valid = 1;
+                
+            end
+            else begin //store wr_mem = 1
+                store_result.valid = 1;
+                load_buffer_packet.valid = 0;
+            end
+        end else begin
             store_result.valid = 0;
-            load_buffer_packet.valid = 1;
-            
-        end
-        else begin //store wr_mem = 1
-            store_result.valid = 1;
             load_buffer_packet.valid = 0;
         end
     end
 
-endmodule
-
-module mult_stage #(parameter num_stages = 4)(
-					input clock, reset, start,
-					input [`XLEN-1:0] product_in, mplier_in, mcand_in,
-
-					output logic done,
-					output logic [`XLEN-1:0] product_out, mplier_out, mcand_out
-				);
-
-
-    
-	logic [`XLEN-1:0] prod_in_reg, partial_prod_reg;
-	logic [`XLEN-1:0] partial_product, next_mplier, next_mcand;
-
-    parameter num_each = `XLEN/num_stages;
-	assign product_out = prod_in_reg + partial_prod_reg;
-
-	assign partial_product = mplier_in[(num_each-1):0] * mcand_in;
-
-	assign next_mplier = {{num_each{1'b0}}, mplier_in[`XLEN-1:num_stages]};
-	assign next_mcand = {mcand_in[`XLEN-1-num_each:0],{num_each{1'b0}}};
-
-	always_ff @(posedge clock) begin
-		prod_in_reg      <= product_in;
-		partial_prod_reg <= partial_product;
-		mplier_out       <= next_mplier;
-		mcand_out        <= next_mcand;
-	end
-
-	// synopsys sync_set_reset "reset"
-	always_ff @(posedge clock) begin
-		if(reset)
-			done <= 1'b0;
-		else
-			done <= start;
-	end
-
-endmodule
-
-module mult  #(parameter num_stages = 4)(
-				input clock, reset,
-				input [`XLEN-1:0] mcand, mplier,
-				input start,				
-				output [`XLEN-1:0] product,
-				output done
-			);
-  logic [`XLEN-1:0] mcand_out, mplier_out;
-  logic [((num_stages-1)*`XLEN)-1:0] internal_products, internal_mcands, internal_mpliers;
-  logic [(num_stages-2):0] internal_dones;
-
-	mult_stage #(.num_stages(num_stages)) mstage [(num_stages-1):0] (
-		.clock(clock),
-		.reset(reset),
-		.product_in({internal_products,`XLEN'h0}),
-		.mplier_in({internal_mpliers,mplier}),
-		.mcand_in({internal_mcands,mcand}),
-		.start({internal_dones,start}),
-		.product_out({product,internal_products}),
-		.mplier_out({mplier_out,internal_mpliers}),
-		.mcand_out({mcand_out,internal_mcands}),
-		.done({done,internal_dones})
-	);
-
-endmodule
-
-module pipelined_multiplication_unit(
-    input INSTR_READY_ENTRY ready_inst_entry, // output ready instruction entry from RS
-    input clock,
-    input reset,
-    input start,
-    
-    output CDB_DATA mult_cdb_output, // multiplication product output to CDB
-    output done //indicates whether the multiplication is done
-);
-    logic [`XLEN-1:0] opa, opb;
-    ALU_FUNC func;
-    logic clock, start, reset;
-    logic done;
-    logic [`XLEN-1:0] result;
-
-    alu_info_extraction operands_extract(
-        //Input
-        .ready_inst_entry(ready_inst_entry),
-        //Outputs
-        .opa(opa),
-        .opb(opb),
-        .func(func)
-    );
-
-    mult m0(
-        //Inputs
-        .clock(clock),
-        .reset(reset),
-        .mcand(opa),
-        .mplier(opb),
-        .start(start),
-        //Outputs
-        .product(result),
-        .done(done)
-    );
-    always_comb begin
-        mult_cdb_output.valid = 1;
-        mult_cdb_output.value = result;
-        mult_cdb_output.rob_tag = ready_inst_entry.rd_tag;
-    end
-    
 endmodule

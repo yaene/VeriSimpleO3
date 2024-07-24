@@ -1,4 +1,5 @@
 `timescale 1ns/100ps
+
 module ReservationStation #(parameter NO_WAIT_RS2 = 0)(
     // Input
     input clk,
@@ -8,7 +9,8 @@ module ReservationStation #(parameter NO_WAIT_RS2 = 0)(
     input MAPTABLE_PACKET maptable_packet_rs1,
     input MAPTABLE_PACKET maptable_packet_rs2,
     input [`ROB_TAG_LEN-1:0] alloc_slot,
-    input enable,
+    input alloc_enable,
+    input exec_stall,
 
     // Output
     output logic rs_full,
@@ -19,90 +21,64 @@ module ReservationStation #(parameter NO_WAIT_RS2 = 0)(
     INSTR_READY_ENTRY sorted_instr_ready_table [0:`RS_DEPTH-1];
     logic [`BIRTHDAY_SIZE-1:0] max_birthday = 0;
     logic [`BIRTHDAY_SIZE-1:0] oldest_birthday;
-    logic found_ready_instr = 0;
-    logic smallest_birthday;
-    integer free_slot;
-//    assign instr_ready_table[0].ready = instr_ready_table[0].rs1_ready & (instr_ready_table[0].rs2_ready | NO_WAIT_RS2);
+    logic found_ready_instr;
+    integer free_slot, ready_inst_index;
     generate
         for (genvar i = 0; i < `RS_DEPTH; i = i + 1) begin
             assign instr_ready_table[i].ready = instr_ready_table[i].rs1_ready & (instr_ready_table[i].rs2_ready | NO_WAIT_RS2);
         end
     endgenerate
+
     always_comb begin
-        // Update ready instruction with the oldest birthday
+        // find oldest ready instruction
         oldest_birthday = `MAX_BIRTHDAY;
         found_ready_instr = 0;
-        ready_inst_entry = '0;
+        ready_inst_index = 0;
         for (integer i = 0; i < `RS_DEPTH; i = i + 1) begin
-            if (instr_ready_table[i].valid && instr_ready_table[i].ready && (instr_ready_table[i].birthday < oldest_birthday)) begin
+            if (instr_ready_table[i].valid && instr_ready_table[i].ready && (instr_ready_table[i].birthday <= oldest_birthday)) begin
                 oldest_birthday = instr_ready_table[i].birthday;
+                ready_inst_index = i;
                 found_ready_instr = 1;                    
             end
         end
-        if (found_ready_instr) begin
-            ready_inst_entry = instr_ready_table[oldest_birthday];
-        end
     end
+
+    always_comb begin
+        // find free slot            
+        free_slot = `RS_DEPTH;
+        for (integer i = 0; i < `RS_DEPTH; i = i + 1) begin
+            if (~instr_ready_table[i].valid) begin
+                free_slot = i;
+                break;
+            end
+        end
+        
+        rs_full = free_slot == `RS_DEPTH;
+    end
+
+    assign ready_inst_entry = instr_ready_table[ready_inst_index];
 
     always_ff @(posedge clk) begin
         if (reset) begin
-            rs_full = 0;
             for (integer i = 0; i < `RS_DEPTH; i = i + 1) begin
-                instr_ready_table[i].valid = 0;
-                instr_ready_table[i].ready = 0;
-                instr_ready_table[i].rs1_ready = 0;
-                instr_ready_table[i].rs2_ready = 0;
-                instr_ready_table[i].birthday = `RS_DEPTH;
+                instr_ready_table[i] <= '0;
             end
         end
-        else if (enable) begin
-            // Dispatch
-            free_slot = `RS_DEPTH;
-            // Allocate slot
-            for (integer i = 0; i < `RS_DEPTH; i = i + 1) begin
-                if (~instr_ready_table[i].valid) begin
-                    free_slot = i;
-                    break;
-                end
-            end
-            
-            if (free_slot == `RS_DEPTH) begin
-                rs_full = 1;
-            end 
-            else begin
-                rs_full = 0;    
+        else if (alloc_enable && !rs_full) begin
+                instr_ready_table[free_slot].valid <= 1;
+                instr_ready_table[free_slot].rs1_tag <= maptable_packet_rs1.rob_tag_val;
+                instr_ready_table[free_slot].rs2_tag <= maptable_packet_rs2.rob_tag_val;
+                instr_ready_table[free_slot].rd_tag <= alloc_slot;
+                instr_ready_table[free_slot].rs1_value <= id_packet_out.rs1_value; // value from regfile
+                instr_ready_table[free_slot].rs2_value <= id_packet_out.rs2_value; // value from regfile
+                instr_ready_table[free_slot].rs1_ready <= (id_packet_out.opa_select != OPA_IS_RS1 && !id_packet_out.cond_branch) 
+                    || ((maptable_packet_rs1.rob_tag_val == 0) ? 1: maptable_packet_rs1.rob_tag_ready);
+                instr_ready_table[free_slot].rs2_ready <= (id_packet_out.opb_select != OPB_IS_RS2 && !id_packet_out.cond_branch)
+                    || (maptable_packet_rs2.rob_tag_val == 0) ? 1: maptable_packet_rs2.rob_tag_ready;
+                instr_ready_table[free_slot].birthday <= max_birthday; 
+                instr_ready_table[free_slot].instr <= id_packet_out;
 
-                instr_ready_table[free_slot].valid = 1;
-                instr_ready_table[free_slot].rs1_tag = maptable_packet_rs1.rob_tag_val;
-                instr_ready_table[free_slot].rs2_tag = maptable_packet_rs2.rob_tag_val;
-                instr_ready_table[free_slot].rd_tag = alloc_slot;
-                instr_ready_table[free_slot].rs1_value = id_packet_out.rs1_value; // value from regfile
-                instr_ready_table[free_slot].rs2_value = id_packet_out.rs2_value; // value from regfile
-                instr_ready_table[free_slot].rs1_ready = (instr_ready_table[free_slot].rs1_tag == 0)? 1: maptable_packet_rs1.rob_tag_ready;
-                instr_ready_table[free_slot].rs2_ready = (instr_ready_table[free_slot].rs2_tag == 0)? 1: maptable_packet_rs2.rob_tag_ready;
-                instr_ready_table[free_slot].birthday = max_birthday; 
-                instr_ready_table[free_slot].instr = id_packet_out;
-
-                //next instr will cause overflow
-//                if (max_birthday == `MAX_BIRTHDAY) begin
-//                    // found smallest birthday
-//                    smallest_birthday = `MAX_BIRTHDAY;
-//                    for (integer i = 0; i < `RS_DEPTH; i = i + 1) begin
-//                        if (instr_ready_table[i].valid && instr_ready_table[i].birthday < smallest_birthday) begin
-//                            smallest_birthday = instr_ready_table[i].birthday;
-//                        end
-//                    end
-                    
-//                    for (integer i = 0; i < `RS_DEPTH; i = i + 1) begin
-//                        if (instr_ready_table[i].valid)
-//                            instr_ready_table[i].birthday = instr_ready_table[i].birthday - smallest_birthday;
-//                    end
-//                end 
-//                else begin
-//                    max_birthday = max_birthday + 1;
-//                end
-                max_birthday = max_birthday + 1;
-            end
+               max_birthday <= max_birthday + 1;
         end
 
         // Wait for ready value from CDB
@@ -117,8 +93,9 @@ module ReservationStation #(parameter NO_WAIT_RS2 = 0)(
             end
         end
         
-        if (found_ready_instr) begin
-            instr_ready_table[oldest_birthday].valid = 0;
+        // ready instruction was processed last cycle unless stalled
+        if (found_ready_instr && !exec_stall) begin
+            instr_ready_table[ready_inst_index] <= '0;
         end
     end
 endmodule

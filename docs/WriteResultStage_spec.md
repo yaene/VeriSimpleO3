@@ -8,16 +8,16 @@
 ## Interface
 
 ```verilog
-
 module wr_stage #(parameter FU_NUM=3) (
     // - FU_NUM: number of functional units WR has to arbitrate
     input clock,
     input reset,
-    input CDB_DATA [FU_NUM-1:0] ex_packet_in, // result to put on CDB
+    input EX_WR_PACKET [FU_NUM-1:0] ex_packet_in, // result to put on CDB
     output CDB_DATA cdb,
-    output [FU_NUM-1:0] written // one bit for each FU unit letting it know if its been chosen for WR or has to wait
+    output logic [FU_NUM-1:0] written, // one bit for each FU unit letting it know if its been chosen for WR or has to wait
+    output INST wr_inst,
+    output logic [`XLEN-1:0] wr_NPC
 );
-
 ```
 
 ## Usage

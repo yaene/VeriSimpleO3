@@ -1,14 +1,3 @@
-/////////////////////////////////////////////////////////////////////////
-//                                                                     //
-//   Modulename :  id_stage.v                                          //
-//                                                                     //
-//  Description :  instruction decode (ID) stage of the pipeline;      // 
-//                 decode the instruction fetch register operands, and // 
-//                 compute immediate operand (if applicable)           // 
-//                                                                     //
-/////////////////////////////////////////////////////////////////////////
-
-
 `timescale 1ns/100ps
 
 
@@ -219,30 +208,61 @@ module decoder(
 	end // always
 endmodule // decoder
 
-
-module id_stage(         
-	input         clock,              // system clock
-	input         reset,              // system reset
-	input         wb_reg_wr_en_out,    // Reg write enable from WB Stage
-	input  [4:0] wb_reg_wr_idx_out,  // Reg write index from WB Stage
-	input  [`XLEN-1:0] wb_reg_wr_data_out,  // Reg write data from WB Stage
-	input  IF_ID_PACKET if_id_packet_in,
+module is_stage (         
+	input clock,              // system clock
+	input reset,              // system reset
+	// input from Commit stage
+	input wb_reg_wr_en_out,    // COMMIT_PACKET.reg_wr_en_out
+	input [4:0] wb_reg_wr_idx_out,  // COMMIT_PACKET.reg_wr_idx_out
+	input [`XLEN-1:0] wb_reg_wr_data_out,  // COMMIT_PACKET.data_out
+	// input from IF stage
+	input IF_ID_PACKET if_id_packet_in,
+	// input from Maptable
+    input MAPTABLE_PACKET maptable_packet_rs1,
+    input MAPTABLE_PACKET maptable_packet_rs2,
+	// input from ROB
+	input [`XLEN-1:0] rs1_read_rob_value,
+	input [`XLEN-1:0] rs2_read_rob_value, 
 	
-	output ID_EX_PACKET id_packet_out
+	// output to hazard detection
+	output is_ld_st_inst,
+	// output to RS + ROB + Maptable
+	output ID_EX_PACKET id_packet_out, // rob.dest_reg, rs, maptable.inst
+    // output to rob
+    output alloc_wr_mem,                       // is new instruction a store?
+    output [`XLEN-1:0] alloc_value_in,         // value to store if available during store issue
+    output [`ROB_TAG_LEN-1:0] alloc_store_dep, // else ROB providing value of store
+    output alloc_value_in_valid,               // whether store value is available at issue
+	output [2:0] alloc_mem_size,
+    output [`ROB_TAG_LEN-1:0] rs1_rob_tag,
+	output [`ROB_TAG_LEN-1:0] rs2_rob_tag
 );
+
+	logic [`XLEN-1:0] regf_rs1_value;
+	logic [`XLEN-1:0] regf_rs2_value;
 
     assign id_packet_out.inst = if_id_packet_in.inst;
     assign id_packet_out.NPC  = if_id_packet_in.NPC;
     assign id_packet_out.PC   = if_id_packet_in.PC;
+	assign id_packet_out.predict_taken = if_id_packet_in.predict_taken;
+	assign id_packet_out.predict_target_pc = if_id_packet_in.predict_target_pc;
+
+	assign is_ld_st_inst = id_packet_out.rd_mem || id_packet_out.wr_mem;
+
+    assign alloc_wr_mem = id_packet_out.wr_mem;
+    assign alloc_value_in = id_packet_out.rs2_value;
+    assign alloc_value_in_valid = (alloc_wr_mem && maptable_packet_rs2.rob_tag_val == 0);
+    assign alloc_store_dep = maptable_packet_rs2.rob_tag_val;
+
 	DEST_REG_SEL dest_reg_select; 
 
 	// Instantiate the register file used by this pipeline
 	regfile regf_0 (
 		.rda_idx(if_id_packet_in.inst.r.rs1),
-		.rda_out(id_packet_out.rs1_value), 
+		.rda_out(regf_rs1_value), 
 
 		.rdb_idx(if_id_packet_in.inst.r.rs2),
-		.rdb_out(id_packet_out.rs2_value),
+		.rdb_out(regf_rs2_value),
 
 		.wr_clk(clock),
 		.wr_en(wb_reg_wr_en_out),
@@ -277,5 +297,13 @@ module id_stage(
 			default:    id_packet_out.dest_reg_idx = `ZERO_REG; 
 		endcase
 	end
+
+	assign rs1_rob_tag = maptable_packet_rs1.rob_tag_val;
+	assign rs2_rob_tag = maptable_packet_rs2.rob_tag_val;
+
+	assign id_packet_out.rs1_value = (maptable_packet_rs1.rob_tag_ready) ? rs1_read_rob_value : regf_rs1_value;
+	assign id_packet_out.rs2_value = (maptable_packet_rs2.rob_tag_ready) ? rs2_read_rob_value : regf_rs2_value;
+
+	assign alloc_mem_size = if_id_packet_in.inst.r.funct3;
    
 endmodule // module id_stage

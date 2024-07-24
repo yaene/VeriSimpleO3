@@ -45,81 +45,123 @@ module pipeline (
 	output logic [31:0] if_IR_out,
 	output logic        if_valid_inst_out,
 	
-	// Outputs from IF/ID Pipeline Register
-	output logic [`XLEN-1:0] if_id_NPC,
-	output logic [31:0] if_id_IR,
-	output logic        if_id_valid_inst,
+	// Outputs from IF/IS Pipeline Register
+	output logic [`XLEN-1:0] if_is_NPC_out,
+	output logic [31:0] if_is_IR_out,
+	output logic        if_is_valid_inst_out,
 	
+	output logic [`XLEN-1:0] rs_alu_NPC_out,
+	output logic [31:0] rs_alu_IR_out,
+	output logic        rs_alu_valid_inst_out,
 	
-	// Outputs from ID/EX Pipeline Register
-	output logic [`XLEN-1:0] id_ex_NPC,
-	output logic [31:0] id_ex_IR,
-	output logic        id_ex_valid_inst,
+	output logic [`XLEN-1:0] rs_acu_NPC_out,
+	output logic [31:0] rs_acu_IR_out,
+	output logic        rs_acu_valid_inst_out,
 	
-	
-	// Outputs from EX/MEM Pipeline Register
-	output logic [`XLEN-1:0] ex_mem_NPC,
-	output logic [31:0] ex_mem_IR,
-	output logic        ex_mem_valid_inst,
-	
-	
-	// Outputs from MEM/WB Pipeline Register
-	output logic [`XLEN-1:0] mem_wb_NPC,
-	output logic [31:0] mem_wb_IR,
-	output logic        mem_wb_valid_inst
+	output logic [`XLEN-1:0] lb_NPC_out,
+	output logic [31:0] lb_IR_out,
+	output logic        lb_valid_inst_out,
+	 
+	output logic [`XLEN-1:0] ex_wr_NPC_out,
+	output logic [31:0] ex_wr_IR_out,
+	output logic        ex_wr_valid_inst_out,
+
+	output logic [`XLEN-1:0] commit_NPC_out,
+	output logic [31:0] commit_IR_out,
+	output logic        commit_valid_inst_out
 
 );
 
-	// Pipeline register enables
-	logic   if_id_enable, id_ex_enable, ex_mem_enable, mem_wb_enable;
+	// hazard detection unit outputs
+    logic if_enable;
+    logic if_is_enable;
+    logic if_is_flush; // branch misprediction
+    logic rob_enable;
+    logic rs_ld_st_enable;
+	logic rs_ld_exec_stall;
+	logic rs_alu_enable;
+    logic rs_alu_exec_stall;
+    logic lb_exec_stall;
+    logic alu_wr_enable;
+    logic lb_wr_enable;
+    logic acu_wr_enable;
+
 	
 	// Outputs from IF-Stage
 	logic [`XLEN-1:0] proc2Imem_addr;
 	IF_ID_PACKET if_packet;
 
-	// Outputs from IF/ID Pipeline Register
-	IF_ID_PACKET if_id_packet;
+	// Outputs from IF/IS Pipeline Register
+	IF_ID_PACKET if_is_packet;
 
-	// Outputs from ID stage
-	ID_EX_PACKET id_packet;
+	// outputs from maptable
+	MAPTABLE_PACKET maptable_packet_rs1, maptable_packet_rs2;
 
-	// Outputs from ID/EX Pipeline Register
-	ID_EX_PACKET id_ex_packet;
+	// outputs from ROB
+	logic rob_full;
+    logic [`ROB_TAG_LEN-1:0] rob_alloc_slot; 
+	logic [`XLEN-1:0] rob_read_value_rs1;       
+	logic [`XLEN-1:0] rob_read_value_rs2;      
+	logic pending_stores;                    
+	logic [4:0] rob_wr_dest_reg;                       
+	logic [`ROB_TAG_LEN-1:0] wr_rob_tag;              
+	logic rob_wr_valid;                          
+	ROB_ENTRY rob_head_entry;             
+	logic [`ROB_TAG_LEN-1:0] rob_head;
+	logic rob_head_ready;
+
+	// Outputs from Issue stage
+	ID_EX_PACKET is_packet;
+	logic is_ld_st_inst;
+	logic [`XLEN-1:0] rob_alloc_store_value; 
+	logic [`ROB_TAG_LEN-1:0] rob_alloc_store_dep_inst;
+	logic rob_alloc_wr_mem, is_hazard;
+    logic [`XLEN-1:0] rob_alloc_value_in;
+    logic rob_alloc_value_in_valid;
+	logic [2:0] rob_alloc_mem_size;
+    logic [`ROB_TAG_LEN-1:0] rob_alloc_store_dep, is_rs1_rob_tag,  is_rs2_rob_tag;
+
+	// Outputs from Reservation Stations
+	INSTR_READY_ENTRY rs_ld_st_out, rs_alu_out;
+	logic rs_ld_st_full, rs_alu_full;
 	
 	// Outputs from EX-Stage
-	EX_MEM_PACKET ex_packet;
-	// Outputs from EX/MEM Pipeline Register
-	EX_MEM_PACKET ex_mem_packet;
+	EX_WR_PACKET alu_packet, acu_st_packet, lb_ex_packet;
+	LB_PACKET acu_ld_packet;
+	logic lb_read_mem, lb_full;
+	logic [`ROB_TAG_LEN-1:0] lb_rob_tag;
+	logic [`XLEN-1:0] lb_address;
+	LB_PACKET lb_packet;
+	logic branch_misprediction;
+	logic [`XLEN-1:0]  ex_target_pc;
 
-	// Outputs from MEM-Stage
-	logic [`XLEN-1:0] mem_result_out;
+
+	// Outputs from EX/WR Pipeline Register
+	EX_WR_PACKET acu_wr_packet, lb_wr_packet, alu_wr_packet;
+
+	// outputs from WR-Stage
+	CDB_DATA cdb_data;
+	logic acu_written, alu_written, load_written;
+
+	// Outputs from mem unit
 	logic [`XLEN-1:0] proc2Dmem_addr;
 	logic [`XLEN-1:0] proc2Dmem_data;
 	logic [1:0]  proc2Dmem_command;
 	MEM_SIZE proc2Dmem_size;
+	logic mem_busy;
+	
+	// Outputs from Commit-Stage  (These loop back to the register file in issue)
+	COMMIT_PACKET commit_packet;	
 
-	// Outputs from MEM/WB Pipeline Register
-	logic        mem_wb_halt;
-	logic        mem_wb_illegal;
-	logic  [4:0] mem_wb_dest_reg_idx;
-	logic [`XLEN-1:0] mem_wb_result;
-	logic        mem_wb_take_branch;
+	assign pipeline_completed_insts = {3'b0, commit_packet.valid};
+	assign pipeline_error_status =  !commit_packet.valid ? NO_ERROR : 
+		commit_packet.inst == `WFI ? HALTED_ON_WFI :
+									 NO_ERROR;
 	
-	// Outputs from WB-Stage  (These loop back to the register file in ID)
-	logic [`XLEN-1:0] wb_reg_wr_data_out;
-	logic  [4:0] wb_reg_wr_idx_out;
-	logic        wb_reg_wr_en_out;
-	
-	assign pipeline_completed_insts = {3'b0, mem_wb_valid_inst};
-	assign pipeline_error_status =  mem_wb_illegal             ? ILLEGAL_INST :
-	                                mem_wb_halt                ? HALTED_ON_WFI :
-	                                (mem2proc_response==4'h0)  ? LOAD_ACCESS_FAULT :
-	                                NO_ERROR;
-	
-	assign pipeline_commit_wr_idx = wb_reg_wr_idx_out;
-	assign pipeline_commit_wr_data = wb_reg_wr_data_out;
-	assign pipeline_commit_wr_en = wb_reg_wr_en_out;
-	assign pipeline_commit_NPC = mem_wb_NPC;
+	assign pipeline_commit_wr_idx = commit_packet.reg_wr_idx_out;
+	assign pipeline_commit_wr_data = commit_packet.data_out;
+	assign pipeline_commit_wr_en = commit_packet.reg_wr_en_out;
+	assign pipeline_commit_NPC = commit_packet.NPC;
 	
 	assign proc2mem_command =
 	     (proc2Dmem_command == BUS_NONE) ? BUS_LOAD : proc2Dmem_command;
@@ -146,9 +188,12 @@ module pipeline (
 		// Inputs
 		.clock (clock),
 		.reset (reset),
-		.mem_wb_valid_inst(mem_wb_valid_inst),
-		.ex_mem_take_branch(ex_mem_packet.take_branch),
-		.ex_mem_target_pc(ex_mem_packet.alu_result),
+		.if_enable(if_enable),
+		.ex_pc(rs_alu_out.instr.PC),
+		.ex_branch(alu_branch),
+		.ex_take_branch(ex_take_branch),
+		.branch_misprediction(branch_misprediction),
+		.ex_target_pc(ex_target_pc),
 		.Imem2proc_data(mem2proc_data),
 		
 		// Outputs
@@ -163,82 +208,203 @@ module pipeline (
 //                                              //
 //////////////////////////////////////////////////
 
-	assign if_id_NPC        = if_id_packet.NPC;
-	assign if_id_IR         = if_id_packet.inst;
-	assign if_id_valid_inst = if_id_packet.valid;
-	assign if_id_enable = 1'b1; // always enabled
+	assign if_is_NPC        = if_is_packet.NPC;
+	assign if_is_IR         = if_is_packet.inst;
+	assign if_is_valid_inst = if_is_packet.valid;
 	// synopsys sync_set_reset "reset"
 	always_ff @(posedge clock) begin
-		if (reset) begin 
-			if_id_packet.inst  <= `SD `NOP;
-			if_id_packet.valid <= `SD `FALSE;
-            if_id_packet.NPC   <= `SD 0;
-            if_id_packet.PC    <= `SD 0;
+		if (reset | if_is_flush) begin 
+			if_is_packet.inst  <= `SD `NOP;
+			if_is_packet.valid <= `SD `FALSE;
+            if_is_packet.NPC   <= `SD 0;
+            if_is_packet.PC    <= `SD 0;
 		end else begin// if (reset)
-			if (if_id_enable) begin
-				if_id_packet <= `SD if_packet; 
-			end // if (if_id_enable)	
+			if (if_is_enable) begin
+				if_is_packet <= `SD if_packet; 
+			end // if (if_is_enable)	
 		end
 	end // always
+
+//////////////////////////////////////////////////
+//                                              //
+//                     ROB                      //
+//                                              //
+//////////////////////////////////////////////////
+	rob rob_0 (
+		// inputs
+		.clock(clock),
+		.reset(reset),
+		.alloc_enable(rob_enable),
+		.inst(if_is_packet.inst),
+		.NPC(if_is_packet.NPC),
+		.alloc_wr_mem(rob_alloc_wr_mem),
+		.alloc_value_in(rob_alloc_value_in),
+		.alloc_store_dep(rob_alloc_store_dep_inst),
+		.alloc_value_in_valid(rob_alloc_value_in_valid),
+		.dest_reg(is_packet.dest_reg_idx),
+		.alloc_mem_size(rob_alloc_mem_size),
+		.read_rob_tag_rs1(maptable_packet_rs1.rob_tag_val),
+		.read_rob_tag_rs2(maptable_packet_rs2.rob_tag_val),
+		.cdb_data(cdb_data),
+		.load_address(lb_address),
+		.load_rob_tag(lb_rob_tag),
+		// outputs 
+		.full(rob_full),
+		.alloc_slot(rob_alloc_slot),
+		.read_value_rs1(rob_read_value_rs1),
+		.read_value_rs2(rob_read_value_rs2),
+		.pending_stores(pending_stores),
+		.wr_dest_reg(rob_wr_dest_reg),
+		.wr_rob_tag(wr_rob_tag),
+		.wr_valid(rob_wr_valid),
+		.head_entry(rob_head_entry),
+		.head(rob_head),
+		.head_ready(rob_head_ready)
+	);
+
+//////////////////////////////////////////////////
+//                                              //
+//             Hazard Detection                 //
+//                                              //
+//////////////////////////////////////////////////
+logic is_branch; 
+logic alu_branch;
+assign is_branch = is_packet.cond_branch | is_packet.uncond_branch;
+assign alu_branch = rs_alu_out.valid & rs_alu_out.instr.cond_branch 
+		| rs_alu_out.instr.uncond_branch;
+
+hazard_detection_unit hdu_0 (
+	// inputs
+	.clock(clock),
+	.reset(reset),
+	.rs_ld_st_full(rs_ld_st_full),
+	.rs_alu_full(rs_alu_full),
+	.rob_full(rob_full),
+	.lb_full(lb_full),
+	.is_ld_st_inst(is_ld_st_inst),
+	.is_valid_inst(is_packet.valid),
+	.commit_wr_mem(commit_packet.wr_mem),
+	.lb_read_mem(lb_read_mem),
+	.is_branch(is_branch),
+	.alu_branch(alu_branch),
+	.branch_misprediction(branch_misprediction),
+	.alu_wr_valid(alu_wr_packet.valid),
+	.alu_wr_written(alu_written),
+	.lb_wr_valid(lb_wr_packet.valid),
+	.lb_wr_written(load_written),
+	.acu_wr_valid(acu_wr_packet.valid),
+	.acu_wr_written(acu_written),
+	.acu_wr_mem(acu_st_packet.valid),
+	.acu_rd_mem(acu_ld_packet.valid),
+
+	// outputs
+    .if_enable(if_enable),
+    .if_is_enable(if_is_enable),
+    .if_is_flush(if_is_flush), // branch misprediction
+    .rob_enable(rob_enable),
+    .rs_ld_st_enable(rs_ld_st_enable),
+	.rs_ld_exec_stall(rs_ld_exec_stall),
+	.rs_alu_enable(rs_alu_enable),
+    .rs_alu_exec_stall(rs_alu_exec_stall),
+    .lb_exec_stall(lb_exec_stall),
+    .alu_wr_enable(alu_wr_enable),
+    .lb_wr_enable(lb_wr_enable),
+    .acu_wr_enable(acu_wr_enable)
+);
 
    
 //////////////////////////////////////////////////
 //                                              //
-//                  ID-Stage                    //
+//                  IS-Stage                    //
 //                                              //
 //////////////////////////////////////////////////
+	assign if_is_NPC_out        = if_is_packet.NPC;
+	assign if_is_IR_out         = if_is_packet.inst;
+	assign if_is_valid_inst_out = if_is_packet.valid;
 	
-	id_stage id_stage_0 (// Inputs
+	maptable maptable_0 (
+		//inputs
 		.clock(clock),
 		.reset(reset),
-		.if_id_packet_in(if_id_packet),
-		.wb_reg_wr_en_out   (wb_reg_wr_en_out),
-		.wb_reg_wr_idx_out  (wb_reg_wr_idx_out),
-		.wb_reg_wr_data_out (wb_reg_wr_data_out),
-		
-		// Outputs
-		.id_packet_out(id_packet)
+		.enable(rob_enable), // rob and maptable always update together
+		.commit(commit_packet.valid),
+		.rd_commit(commit_packet.reg_wr_idx_out),
+		.rob_entry_commit(commit_packet.rob_tag),
+		.inst(if_is_packet.inst),
+		.rob_entry_in(rob_alloc_slot),
+		.rd(is_packet.dest_reg_idx),
+		.valid_wb(rob_wr_valid),
+		.rd_wb(rob_wr_dest_reg),
+		.rob_entry_wb(wr_rob_tag),
+		//outputs
+		.maptable_packet_rs1(maptable_packet_rs1),
+		.maptable_packet_rs2(maptable_packet_rs2)
 	);
 
+	is_stage is_stage_0 (// Inputs
+		.clock(clock),
+		.reset(reset),
+		.if_id_packet_in(if_is_packet),
+		.wb_reg_wr_en_out   (commit_packet.reg_wr_en_out),
+		.wb_reg_wr_idx_out  (commit_packet.reg_wr_idx_out),
+		.wb_reg_wr_data_out (commit_packet.data_out),
+		.maptable_packet_rs1(maptable_packet_rs1),
+		.maptable_packet_rs2(maptable_packet_rs2),
+		.rs1_read_rob_value(rob_read_value_rs1),
+		.rs2_read_rob_value(rob_read_value_rs2),
+		
+		// Outputs
+		.id_packet_out(is_packet),
+		.is_ld_st_inst(is_ld_st_inst),
+		.alloc_wr_mem(rob_alloc_wr_mem),
+		.alloc_value_in(rob_alloc_value_in),
+		.alloc_store_dep(rob_alloc_store_dep_inst),
+		.alloc_value_in_valid(rob_alloc_value_in_valid),
+		.alloc_mem_size(rob_alloc_mem_size),
+		.rs1_rob_tag(is_rs1_rob_tag),
+		.rs2_rob_tag(is_rs2_rob_tag)
+	);
 
 //////////////////////////////////////////////////
 //                                              //
-//            ID/EX Pipeline Register           //
+//           Reservation Stations               //
 //                                              //
 //////////////////////////////////////////////////
 
-	assign id_ex_NPC        = id_ex_packet.NPC;
-	assign id_ex_IR         = id_ex_packet.inst;
-	assign id_ex_valid_inst = id_ex_packet.valid;
 
-	assign id_ex_enable = 1'b1; // always enabled
-	// synopsys sync_set_reset "reset"
-	always_ff @(posedge clock) begin
-		if (reset) begin
-			id_ex_packet <= `SD '{{`XLEN{1'b0}},
-				{`XLEN{1'b0}}, 
-				{`XLEN{1'b0}}, 
-				{`XLEN{1'b0}}, 
-				OPA_IS_RS1, 
-				OPB_IS_RS2, 
-				`NOP,
-				`ZERO_REG,
-				ALU_ADD, 
-				1'b0, //rd_mem
-				1'b0, //wr_mem
-				1'b0, //cond
-				1'b0, //uncond
-				1'b0, //halt
-				1'b0, //illegal
-				1'b0, //csr_op
-				1'b0 //valid
-			}; 
-		end else begin // if (reset)
-			if (id_ex_enable) begin
-				id_ex_packet <= `SD id_packet;
-			end // if
-		end // else: !if(reset)
-	end // always
+ReservationStation #(.NO_WAIT_RS2(1)) ld_st_rs  (
+	//inputs
+	.clk(clock),
+	.reset(reset),
+	.cdb(cdb_data),
+	.id_packet_out(is_packet),
+	.maptable_packet_rs1(maptable_packet_rs1),
+	.maptable_packet_rs2(maptable_packet_rs2),
+	.alloc_slot(rob_alloc_slot),
+	.alloc_enable(rs_ld_st_enable),
+	.exec_stall(rs_ld_exec_stall),
+
+	// outputs
+	.rs_full(rs_ld_st_full),
+	.ready_inst_entry(rs_ld_st_out)
+);
+
+ReservationStation #(.NO_WAIT_RS2(0)) alu_rs  (
+	//inputs
+	.clk(clock),
+	.reset(reset),
+	.cdb(cdb_data),
+	.id_packet_out(is_packet),
+	.maptable_packet_rs1(maptable_packet_rs1),
+	.maptable_packet_rs2(maptable_packet_rs2),
+	.alloc_slot(rob_alloc_slot),
+	.alloc_enable(rs_alu_enable),
+	.exec_stall(rs_alu_exec_stall),
+
+	// outputs
+	.rs_full(rs_alu_full),
+	.ready_inst_entry(rs_alu_out)
+);
 
 
 //////////////////////////////////////////////////
@@ -246,55 +412,64 @@ module pipeline (
 //                  EX-Stage                    //
 //                                              //
 //////////////////////////////////////////////////
-	ex_stage ex_stage_0 (
-		// Inputs
+
+	assign rs_alu_NPC_out        = rs_alu_out.instr.NPC;
+	assign rs_alu_IR_out         = rs_alu_out.instr.inst;
+	assign rs_alu_valid_inst_out = rs_alu_out.instr.valid;
+
+alu_execution_unit alu_0 (
+	// inputs
+	.ready_inst_entry(rs_alu_out),
+	// outputs
+	.alu_output(alu_packet),
+	.target_PC(ex_target_pc),
+	.take_branch(ex_take_branch),
+	.branch_misprediction(branch_misprediction)
+);
+
+	assign rs_acu_NPC_out        = rs_ld_st_out.instr.NPC;
+	assign rs_acu_IR_out         = rs_ld_st_out.instr.inst;
+	assign rs_acu_valid_inst_out = rs_ld_st_out.instr.valid;
+
+address_calculation_unit acu_0 (
+	// inputs
+	.ready_inst_entry(rs_ld_st_out),
+	// outputs
+	.store_result(acu_st_packet),
+	.load_buffer_packet(acu_ld_packet)
+);
+
+	assign lb_NPC_out        = lb_packet.NPC;
+	assign lb_IR_out         = lb_packet.inst;
+	assign lb_valid_inst_out = lb_packet.valid;
+
+load_buffer load_buffer_0 (
+	// inputs
+	.clock(clock),
+	.reset(reset),
+	.lb_packet_in(acu_ld_packet),
+	// all reasons when lb should not alloc are handled by lb_packet_in and full
+	.alloc_enable(`TRUE), 
+	.pending_stores(pending_stores),
+	.lb_exec_stall(lb_exec_stall),
+	// outputs
+	.lb_packet_out(lb_packet),
+	.full(lb_full),
+	.load_address(lb_address),
+	.load_rob_tag(lb_rob_tag),
+	.read_mem(lb_read_mem)
+);	
+
+mem_stage mem_stage_0 (// Inputs
 		.clock(clock),
 		.reset(reset),
-		.id_ex_packet_in(id_ex_packet),
-		// Outputs
-		.ex_packet_out(ex_packet)
-	);
-
-
-//////////////////////////////////////////////////
-//                                              //
-//           EX/MEM Pipeline Register           //
-//                                              //
-//////////////////////////////////////////////////
-	
-	assign ex_mem_NPC        = ex_mem_packet.NPC;
-	assign ex_mem_valid_inst = ex_mem_packet.valid;
-
-	assign ex_mem_enable = 1'b1; // always enabled
-	// synopsys sync_set_reset "reset"
-	always_ff @(posedge clock) begin
-		if (reset) begin
-			ex_mem_IR     <= `SD `NOP;
-			ex_mem_packet <= `SD 0;
-		end else begin
-			if (ex_mem_enable)   begin
-				// these are forwarded directly from ID/EX registers, only for debugging purposes
-				ex_mem_IR     <= `SD id_ex_IR;
-				// EX outputs
-				ex_mem_packet <= `SD ex_packet;
-			end // if
-		end // else: !if(reset)
-	end // always
-
-   
-//////////////////////////////////////////////////
-//                                              //
-//                 MEM-Stage                    //
-//                                              //
-//////////////////////////////////////////////////
-	mem_stage mem_stage_0 (// Inputs
-		.clock(clock),
-		.reset(reset),
-		.ex_mem_packet_in(ex_mem_packet),
+		.lb_packet_in(lb_packet),
+		.read_mem(lb_read_mem),
+		.cmt_packet_in(commit_packet),
 		.Dmem2proc_data(mem2proc_data[`XLEN-1:0]),
 		
 		// Outputs
-		.mem_result_out(mem_result_out),
+		.lb_ex_packet_out(lb_ex_packet),
 		.proc2Dmem_command(proc2Dmem_command),
 		.proc2Dmem_size(proc2Dmem_size),
 		.proc2Dmem_addr(proc2Dmem_addr),
@@ -302,60 +477,70 @@ module pipeline (
 	);
 
 
+
 //////////////////////////////////////////////////
 //                                              //
-//           MEM/WB Pipeline Register           //
+//           EX/WR Pipeline Registers           //
 //                                              //
 //////////////////////////////////////////////////
-	assign mem_wb_enable = 1'b1; // always enabled
-	// synopsys sync_set_reset "reset"
+	
 	always_ff @(posedge clock) begin
-		if (reset) begin
-			mem_wb_NPC          <= `SD 0;
-			mem_wb_IR           <= `SD `NOP;
-			mem_wb_halt         <= `SD 0;
-			mem_wb_illegal      <= `SD 0;
-			mem_wb_valid_inst   <= `SD 0;
-			mem_wb_dest_reg_idx <= `SD `ZERO_REG;
-			mem_wb_take_branch  <= `SD 0;
-			mem_wb_result       <= `SD 0;
-		end else begin
-			if (mem_wb_enable) begin
-				// these are forwarded directly from EX/MEM latches
-				mem_wb_NPC          <= `SD ex_mem_packet.NPC;
-				mem_wb_IR           <= `SD ex_mem_IR;
-				mem_wb_halt         <= `SD ex_mem_packet.halt;
-				mem_wb_illegal      <= `SD ex_mem_packet.illegal;
-				mem_wb_valid_inst   <= `SD ex_mem_packet.valid;
-				mem_wb_dest_reg_idx <= `SD ex_mem_packet.dest_reg_idx;
-				mem_wb_take_branch  <= `SD ex_mem_packet.take_branch;
-				// these are results of MEM stage
-				mem_wb_result       <= `SD mem_result_out;
-			end // if
-		end // else: !if(reset)
+		if (reset) begin 
+			acu_wr_packet <= '0;
+            lb_wr_packet  <= '0;
+            alu_wr_packet <= '0;
+		end else begin// if (reset)
+			if (acu_wr_enable) begin
+				acu_wr_packet <= acu_st_packet; 
+			end 
+			if (lb_wr_enable) begin
+				lb_wr_packet <= lb_ex_packet; 
+			end 
+			if (alu_wr_enable) begin
+				alu_wr_packet <= alu_packet; 
+			end 
+		end
 	end // always
 
 
 //////////////////////////////////////////////////
 //                                              //
-//                  WB-Stage                    //
+//                  WR-Stage                    //
 //                                              //
 //////////////////////////////////////////////////
-	wb_stage wb_stage_0 (
-		// Inputs
+	assign ex_wr_valid_inst_out = cdb_data.valid;
+
+	wr_stage wr_stage_0 (
+		//inputs
 		.clock(clock),
 		.reset(reset),
-		.mem_wb_NPC(mem_wb_NPC),
-		.mem_wb_result(mem_wb_result),
-		.mem_wb_dest_reg_idx(mem_wb_dest_reg_idx),
-		.mem_wb_take_branch(mem_wb_take_branch),
-		.mem_wb_valid_inst(mem_wb_valid_inst),
-		
-		// Outputs
-		.reg_wr_data_out(wb_reg_wr_data_out),
-		.reg_wr_idx_out(wb_reg_wr_idx_out),
-		.reg_wr_en_out(wb_reg_wr_en_out)
+		.ex_packet_in({acu_wr_packet,alu_wr_packet,lb_wr_packet}),
+		// outputs
+		.cdb(cdb_data),
+		.written({acu_written, alu_written, load_written}),
+		.wr_inst(ex_wr_IR_out),
+		.wr_NPC(ex_wr_NPC_out)
 	);
 
+//////////////////////////////////////////////////
+//                                              //
+//              Commit-Stage                    //
+//                                              //
+//////////////////////////////////////////////////
+
+	assign commit_NPC_out        = commit_packet.NPC;
+	assign commit_IR_out         = commit_packet.inst;
+	assign commit_valid_inst_out = commit_packet.valid;
+
+	commit_stage commit_stage_0 (
+		// inputs
+		.clock(clock),
+		.reset(reset),
+		.head_entry(rob_head_entry),
+		.head_ready(rob_head_ready),
+		.commit_rob_tag(rob_head),
+		// outputs
+		.cmt_packet_out(commit_packet)
+	);
 endmodule  // module verisimple
 `endif // __PIPELINE_V__
