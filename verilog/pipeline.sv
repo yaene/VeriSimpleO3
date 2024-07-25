@@ -372,7 +372,7 @@ hazard_detection_unit hdu_0 (
 //////////////////////////////////////////////////
 
 
-ReservationStation #(.NO_WAIT_RS2(1)) ld_st_rs  (
+ReservationStation #(.NO_WAIT_RS2(1), .RS_DEPTH(1)) ld_st_rs  (
 	//inputs
 	.clk(clock),
 	.reset(reset),
@@ -389,7 +389,7 @@ ReservationStation #(.NO_WAIT_RS2(1)) ld_st_rs  (
 	.ready_inst_entry(rs_ld_st_out)
 );
 
-ReservationStation #(.NO_WAIT_RS2(0)) alu_rs  (
+ReservationStation #(.NO_WAIT_RS2(0), .RS_DEPTH(4)) alu_rs  (
 	//inputs
 	.clk(clock),
 	.reset(reset),

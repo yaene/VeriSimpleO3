@@ -126,16 +126,20 @@ module rob (input clock,
         end
     end
     
-    // forwarding from cdb to dependent store
+    // forwarding from cdb and rob to dependent store
     always_comb begin
         alloc_value       = alloc_value_in;
         alloc_value_ready = alloc_value_in_valid;
-        if (alloc_wr_mem && cdb_data.valid
-        && alloc_store_dep == cdb_data.rob_tag
-        && !alloc_value_in_valid) begin
-        alloc_value       = cdb_data.value;
-        alloc_value_ready = `TRUE;
-    end
+        if (alloc_wr_mem && !alloc_value_in_valid) begin 
+            if (cdb_data.valid && alloc_store_dep == cdb_data.rob_tag) begin
+                alloc_value       = cdb_data.value;
+                alloc_value_ready = `TRUE;
+            end
+            else if (rob[alloc_store_dep].value_ready) begin
+                alloc_value       = rob[alloc_store_dep].value;
+                alloc_value_ready = `TRUE;
+            end
+        end
     end
 
     // checking whether pending stores exist for the load instruction
