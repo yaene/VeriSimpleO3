@@ -68,7 +68,7 @@ module hazard_detection_unit (
         | (acu_rd_mem  & ~lb_full);
 
     assign rs_alu_exec_stall = ~alu_wr_enable;
-    assign lb_exec_stall = (commit_wr_mem | ~lb_wr_enable);
+    assign lb_exec_stall = (commit_wr_mem | ~lb_wr_enable | Dmem_wait);
 
     always_ff @(posedge clock) begin
         if (reset) begin

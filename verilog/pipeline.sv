@@ -152,6 +152,7 @@ module pipeline (
 	MEM_SIZE proc2Dmem_size;
 	logic mem_busy;
 	logic Dmem_wait;
+	logic Dmem_ready;
 	
 	// Outputs from Commit-Stage  (These loop back to the register file in issue)
 	COMMIT_PACKET commit_packet;	
@@ -461,7 +462,7 @@ load_buffer load_buffer_0 (
 	.alloc_enable(`TRUE), 
 	.pending_stores(pending_stores),
 	.lb_exec_stall(lb_exec_stall),
-	.Dmem_wait(Dmem_wait),
+	.Dmem_ready(Dmem_ready),
 	// outputs
 	.lb_packet_out(lb_packet),
 	.full(lb_full),
@@ -476,6 +477,7 @@ mem_stage mem_stage_0 (// Inputs
 		.lb_packet_in(lb_packet),
 		.read_mem(lb_read_mem),
 		.cmt_packet_in(commit_packet),
+		.lb_wr_enable(lb_wr_enable),
 		.Dmem2proc_data(mem2proc_data[`XLEN-1:0]),
 		.Dmem2proc_response(mem2proc_response),
 		.Dmem2proc_tag(mem2proc_tag),
@@ -486,7 +488,8 @@ mem_stage mem_stage_0 (// Inputs
 		.proc2Dmem_size(proc2Dmem_size),
 		.proc2Dmem_addr(proc2Dmem_addr),
 		.proc2Dmem_data(proc2Dmem_data),
-		.Dmem_wait(Dmem_wait)
+		.Dmem_wait(Dmem_wait),
+		.Dmem_ready(Dmem_ready)
 	);
 
 

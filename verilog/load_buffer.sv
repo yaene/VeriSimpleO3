@@ -12,7 +12,7 @@ module load_buffer (
     input alloc_enable,
     input pending_stores, // from ROB, whether there are pending stores
     input lb_exec_stall, // from hazard detection unit
-    input Dmem_wait, // from mem_stage
+    input Dmem_ready, // from mem_stage
 
     output LB_PACKET lb_packet_out,
     output logic full, // to ACU, whether Load Buffer is available
@@ -36,7 +36,7 @@ module load_buffer (
                 end
             end
             else begin
-                if (read_mem && ~lb_exec_stall && ~Dmem_wait) begin
+                if (Dmem_ready) begin
                     lb_packet <= `EMPTY_LB_PACKET;
                     full <= `FALSE;
                 end
@@ -51,11 +51,11 @@ module load_buffer (
 
     always_comb begin
         lb_packet_out = lb_packet;
-        if ((~read_mem || lb_exec_stall) && ~Dmem_wait) begin
-            // make sure that if we have no result available
-            // it is not accidentally put on CDB
-            lb_packet_out.valid = `FALSE;
-        end
+        // if (~read_mem || lb_exec_stall) begin
+        //     // make sure that if we have no result available
+        //     // it is not accidentally put on CDB
+        //     lb_packet_out.valid = `FALSE;
+        // end
     end
     
 
