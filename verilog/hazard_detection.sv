@@ -63,7 +63,7 @@ module hazard_detection_unit (
     assign acu_wr_enable = ~acu_wr_valid | acu_wr_written;
 
     assign rs_ld_exec_stall = (acu_wr_mem & ~acu_wr_enable) 
-        | (acu_rd_mem  & ~lb_full);
+        | (acu_rd_mem & lb_full);
 
     assign rs_alu_exec_stall = ~alu_wr_enable;
     assign lb_exec_stall = (commit_wr_mem | ~lb_wr_enable);
