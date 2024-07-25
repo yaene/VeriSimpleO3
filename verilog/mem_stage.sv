@@ -29,10 +29,12 @@ module mem_stage(
 	input logic  read_mem,					// form load buffer
 
 	input COMMIT_PACKET  cmt_packet_in,	// from commit stage
+	input lb_wr_enable,
 	
 	
 	output mem_busy,					// to load buffer
 	output Dmem_wait,					// to load buffer
+	output Dmem_ready,
 	
 	output EX_WR_PACKET lb_ex_packet_out,
 	output logic [1:0] proc2Dmem_command,
@@ -92,7 +94,7 @@ module mem_stage(
 	// Determine the command that must be sent to mem
 	assign proc2Dmem_command =
 	                        (cmt_packet_in.wr_mem & cmt_packet_in.valid) ? BUS_STORE :
-							(read_mem & lb_packet_in.valid & current_state == READY) ? BUS_LOAD :
+							(read_mem & lb_packet_in.valid & current_state == READY & lb_wr_enable) ? BUS_LOAD :
 	                        BUS_NONE;
 
 	assign proc2Dmem_size = proc2Dmem_command == BUS_LOAD 
