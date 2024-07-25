@@ -57,7 +57,12 @@ module if_stage(
 				tail <= tail + 1;
 			end
 			for (int i = 0; i < `IQ_SIZE; ++i) begin
-			    ready[i] <= inst_queue[i].if_packet.valid;
+			    if (inst_queue[i].if_packet.valid) begin
+			        ready[i] <= 1;
+			    end
+			    else begin
+			        ready[i] <= 0;
+			    end
 			end
 			if (inst_queue[head].if_packet.valid) begin
 			    if(PC_enable) begin
@@ -69,24 +74,21 @@ module if_stage(
 	end
 
 	always_comb begin
-		if (reset || branch_misprediction) begin
-			for (int i = 0; i < `IQ_SIZE; ++i) begin
-				// intialize inst queue, head and tail
-				inst_queue[i].recorded_response = 0;
-				inst_queue[i].if_packet.valid = 0;
-			end			
-		end
+//		if (reset || branch_misprediction) begin
+//			for (int i = 0; i < `IQ_SIZE; ++i) begin
+//				// intialize inst queue, head and tail
+//				inst_queue[i] = '0;
+//			end			
+//		end
 		for (int i = 0; i < `IQ_SIZE; ++i) begin
 			if (head <= tail) begin
 				if (i < head || i > tail) begin
-					inst_queue[i].if_packet.valid = 0;
-					inst_queue[i].recorded_response = 0;
+					inst_queue[i] = '0;
 				end
 			end
 			else begin
 				if (i > head && i < tail) begin
-					inst_queue[i].if_packet.valid = 0;
-					inst_queue[i].recorded_response = 0;
+					inst_queue[i]= '0;
 				end
 			end
 		end
@@ -100,13 +102,8 @@ module if_stage(
 		proc2Imem_addr = {PC_reg[`XLEN-1:3], 3'b0};
 		for (int i = 0; i < `IQ_SIZE; ++i) begin
 			if (!ready[i] && Imem2proc_tag !=0 && Imem2proc_tag == inst_queue[i].recorded_response) begin
-			    if (!if_mem_hazard) begin
-                    inst_queue[i].if_packet.valid = 1;
-                    inst_queue[i].if_packet.inst = inst_queue[i].if_packet.PC[2] ? Imem2proc_data[63:32] : Imem2proc_data[31:0];
-                end
-                else begin
-                    inst_queue[i].if_packet.valid = 0;
-                end
+                inst_queue[i].if_packet.valid = 1;
+                inst_queue[i].if_packet.inst = inst_queue[i].if_packet.PC[2] ? Imem2proc_data[63:32] : Imem2proc_data[31:0];
 			end
 		end
 	end
@@ -135,7 +132,7 @@ module if_stage(
 	branch_prediction_unit bpu_0 (
 		.clock(clock),
 		.reset(reset),
-		.pc(if_packet_out.PC),
+		.pc(PC_reg),
 		.ex_pc(ex_pc),
 		.ex_taken(ex_take_branch),
 		.ex_branch(ex_branch),
@@ -162,7 +159,7 @@ module if_stage(
 		if (reset) begin
 			PC_reg <= `SD 0;
 		end else begin
-			if (PC_enable) begin
+			if (!if_mem_hazard | branch_misprediction) begin
 				PC_reg <= `SD next_PC; // transition to next PC
 			end
 		end
