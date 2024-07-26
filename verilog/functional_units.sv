@@ -308,6 +308,8 @@ module mult  #(parameter num_stages = 4)(
 
 endmodule
 
+typedef enum { IDLE, BUSY } MULT_STATE;
+
 module MultiplierControl(
     input wire clock,
     input wire reset,

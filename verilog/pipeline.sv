@@ -424,7 +424,7 @@ ReservationStation #(.NO_WAIT_RS2(0), .RS_DEPTH(4)) alu_rs  (
 	.ready_inst_entry(rs_alu_out)
 );
 
-ReservationStation #(.NO_WAIT_RS2(0)) mult_rs  (
+ReservationStation #(.NO_WAIT_RS2(0), .RS_DEPTH(4)) mult_rs  (
 	//inputs
 	.clk(clock),
 	.reset(reset),
