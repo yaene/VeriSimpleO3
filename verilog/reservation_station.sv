@@ -91,11 +91,13 @@ module ReservationStation #(parameter NO_WAIT_RS2 = 0, parameter RS_DEPTH = 4)(
                 end
                  // Wait for ready value from CDB
                 else if (cdb.valid && instr_ready_table[i].valid ) begin
-                    if (instr_ready_table[i].rs1_tag == cdb.rob_tag) begin
+                    if (!instr_ready_table[i].rs1_ready &&
+                            instr_ready_table[i].rs1_tag == cdb.rob_tag) begin
                         instr_ready_table[i].rs1_value <= cdb.value;
                         instr_ready_table[i].rs1_ready <= 1;
                     end
-                    if (instr_ready_table[i].rs2_tag == cdb.rob_tag) begin
+                    if (!instr_ready_table[i].rs2_ready && 
+                            instr_ready_table[i].rs2_tag == cdb.rob_tag) begin
                         instr_ready_table[i].rs2_value <= cdb.value;
                         instr_ready_table[i].rs2_ready <= 1;
                     end
