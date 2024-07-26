@@ -262,7 +262,7 @@ module mult_stage #(parameter num_stages = 4)(
 
     assign partial_product = mplier_in[(num_each-1):0] * mcand_in;
 
-    assign next_mplier = {{num_each{1'b0}}, mplier_in[`XLEN-1:num_stages]};
+    assign next_mplier = {{num_each{1'b0}}, mplier_in[`XLEN-1:num_each]};
     assign next_mcand = {mcand_in[`XLEN-1-num_each:0],{num_each{1'b0}}};
 
     always_ff @(posedge clock) begin
