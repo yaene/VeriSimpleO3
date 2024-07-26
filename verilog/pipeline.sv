@@ -280,7 +280,7 @@ module pipeline (
 logic is_branch; 
 logic alu_branch;
 assign is_branch = is_packet.cond_branch | is_packet.uncond_branch;
-assign alu_branch = rs_alu_out.valid & rs_alu_out.instr.cond_branch 
+assign alu_branch = rs_alu_out.ready & rs_alu_out.instr.cond_branch 
 		| rs_alu_out.instr.uncond_branch;
 
 hazard_detection_unit hdu_0 (
@@ -390,7 +390,7 @@ hazard_detection_unit hdu_0 (
 //////////////////////////////////////////////////
 
 
-ReservationStation #(.NO_WAIT_RS2(1)) ld_st_rs  (
+ReservationStation #(.NO_WAIT_RS2(1), .RS_DEPTH(1)) ld_st_rs  (
 	//inputs
 	.clk(clock),
 	.reset(reset),
@@ -407,7 +407,7 @@ ReservationStation #(.NO_WAIT_RS2(1)) ld_st_rs  (
 	.ready_inst_entry(rs_ld_st_out)
 );
 
-ReservationStation #(.NO_WAIT_RS2(0)) alu_rs  (
+ReservationStation #(.NO_WAIT_RS2(0), .RS_DEPTH(4)) alu_rs  (
 	//inputs
 	.clk(clock),
 	.reset(reset),
