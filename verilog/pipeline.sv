@@ -278,8 +278,8 @@ module pipeline (
 logic is_branch; 
 logic alu_branch;
 assign is_branch = is_packet.cond_branch | is_packet.uncond_branch;
-assign alu_branch = rs_alu_out.ready & rs_alu_out.instr.cond_branch 
-		| rs_alu_out.instr.uncond_branch;
+assign alu_branch = rs_alu_out.ready & (rs_alu_out.instr.cond_branch 
+		| rs_alu_out.instr.uncond_branch);
 
 hazard_detection_unit hdu_0 (
 	// inputs

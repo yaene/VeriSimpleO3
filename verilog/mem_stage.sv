@@ -80,12 +80,17 @@ module mem_stage(
 				next_state = READY;
 		endcase
 	end	
+	
+	initial begin
+	   recorded_response = 0;
+    end
 
-	assign recorded_response = (proc2Dmem_command == BUS_LOAD)? Dmem2proc_response:recorded_response;
+	assign recorded_response = (current_state == READY && proc2Dmem_command == BUS_LOAD)? Dmem2proc_response:
+	                           (current_state == MEM_WAIT)? recorded_response : 0;
 	assign Dmem_ready = (recorded_response !=0) && (recorded_response == Dmem2proc_tag);
 	assign Dmem_wait = (next_state == MEM_WAIT);	
 	
-	assign lb_ex_packet_out.valid = lb_packet_in.valid && Dmem_ready;
+	assign lb_ex_packet_out.valid = (lb_packet_in.valid && Dmem_ready)?1:0;
 	assign lb_ex_packet_out.NPC = lb_packet_in.NPC;
 	assign lb_ex_packet_out.inst = lb_packet_in.inst;
 	assign lb_ex_packet_out.rob_tag = lb_packet_in.rd_tag;
@@ -111,16 +116,16 @@ module mem_stage(
 	always_comb begin
 		mem_result_out = cmt_packet_in.data_out;
 		if (read_mem) begin //read memory, load
-			if (~cmt_packet_in.mem_size[2]) begin //is this an signed/unsigned load?
-				if (proc2Dmem_size == 2'b0)
+			if (~lb_packet_in.mem_size[2]) begin //is this an signed/unsigned load?
+				if (lb_packet_in.mem_size[1:0] == 2'b0)
 					mem_result_out = {{(`XLEN-8){Dmem2proc_data[7]}}, Dmem2proc_data[7:0]};
-				else if  (proc2Dmem_size == 2'b01) 
+				else if  (lb_packet_in.mem_size[1:0] == 2'b01) 
 					mem_result_out = {{(`XLEN-16){Dmem2proc_data[15]}}, Dmem2proc_data[15:0]};
 				else mem_result_out = Dmem2proc_data;
 			end else begin
-				if (proc2Dmem_size == 2'b0)
+				if (lb_packet_in.mem_size[1:0] == 2'b0)
 					mem_result_out = {{(`XLEN-8){1'b0}}, Dmem2proc_data[7:0]};
-				else if  (proc2Dmem_size == 2'b01)
+				else if  (lb_packet_in.mem_size[1:0] == 2'b01)
 					mem_result_out = {{(`XLEN-16){1'b0}}, Dmem2proc_data[15:0]};
 				else mem_result_out = Dmem2proc_data;
 			end
