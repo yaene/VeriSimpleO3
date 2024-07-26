@@ -105,7 +105,7 @@ module if_stage(
 		next_state = current_state;
 		case (current_state)
 			READY: begin
-				if (!reset && PC_enable && !Imem_ready && !if_mem_hazard) begin
+				if (!reset && PC_enable && !Imem_ready && !if_mem_hazard & !branch_misprediction) begin
 					next_state = MEM_WAIT;
 				end
 			end

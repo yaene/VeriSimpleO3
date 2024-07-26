@@ -80,12 +80,16 @@ module mem_stage(
 				next_state = READY;
 		endcase
 	end	
+	
+	initial begin
+	   recorded_response = 0;
+    end
 
 	assign recorded_response = (proc2Dmem_command == BUS_LOAD)? Dmem2proc_response:recorded_response;
 	assign Dmem_ready = (recorded_response !=0) && (recorded_response == Dmem2proc_tag);
 	assign Dmem_wait = (next_state == MEM_WAIT);	
 	
-	assign lb_ex_packet_out.valid = lb_packet_in.valid && Dmem_ready;
+	assign lb_ex_packet_out.valid = (lb_packet_in.valid && Dmem_ready)?1:0;
 	assign lb_ex_packet_out.NPC = lb_packet_in.NPC;
 	assign lb_ex_packet_out.inst = lb_packet_in.inst;
 	assign lb_ex_packet_out.rob_tag = lb_packet_in.rd_tag;
