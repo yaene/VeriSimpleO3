@@ -48,7 +48,7 @@ module mem_stage(
 	typedef enum logic [1:0] {
 		READY,
 		MEM_WAIT,
-		REQUEST_ERROR,
+		REQUEST_ERROR
 	} Dmem_state;
 	Dmem_state current_state, next_state;
 	logic [3:0] recorded_response;
@@ -69,12 +69,25 @@ module mem_stage(
 		case (current_state)
 			READY: begin
 				if (!reset && !Dmem_ready && proc2Dmem_command == BUS_LOAD) begin
-					if (recorded_response ==0) begin
+					if (recorded_response == 0) begin
 						next_state = REQUEST_ERROR;
 					end
 					else begin
 						next_state = MEM_WAIT;
 					end					
+				end
+			end
+			REQUEST_ERROR: begin
+				if (!reset && !Dmem_ready && proc2Dmem_command == BUS_LOAD) begin
+					if (recorded_response == 0) begin
+						next_state = REQUEST_ERROR;
+					end
+					else begin
+						next_state = MEM_WAIT;
+					end					
+				end
+				else begin
+					next_state = READY;
 				end
 			end
 			MEM_WAIT: begin

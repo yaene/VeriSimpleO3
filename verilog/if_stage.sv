@@ -94,7 +94,7 @@ module if_stage(
 				end
 			end
 		end
-		IQ_full = (tail + 1 == head);
+		IQ_full = (tail + 1 == head)|((tail - head + 1) == `IQ_SIZE);
 		inst_queue[tail].recorded_response = current_response;
 		PC_plus_4 = PC_reg + 4;
 		inst_queue[tail].if_packet.NPC = PC_plus_4;
@@ -174,7 +174,7 @@ module if_stage(
 		if (reset) begin
 			PC_reg <= `SD 0;
 		end else begin
-			if (!(IQ_full | mem_busy) | branch_misprediction) begin
+			if (!(IQ_full | mem_busy | inst_queue[tail].recorded_response == 0) | branch_misprediction) begin
 				PC_reg <= `SD next_PC; // transition to next PC
 			end
 		end
