@@ -24,6 +24,8 @@ module if_stage(
 	input  [3:0] Imem2proc_response,
 	input  [3:0] Imem2proc_tag,
 	input if_mem_hazard,
+	input if_is_enable,
+	input mem_busy,
 
 	output logic [`XLEN-1:0] proc2Imem_addr,    // Address sent to Instruction memory
 	output logic [1:0] proc2Imem_command,
@@ -53,7 +55,7 @@ module if_stage(
 			end
 		end
 		else begin
-			if (inst_queue[tail].recorded_response != 0) begin
+			if (inst_queue[tail].recorded_response != 0 && proc2Imem_command == BUS_LOAD) begin
 				tail <= tail + 1;
 			end
 			for (int i = 0; i < `IQ_SIZE; ++i) begin
@@ -87,7 +89,7 @@ module if_stage(
 				end
 			end
 			else begin
-				if (i > head && i < tail) begin
+				if (i < head && i > tail) begin
 					inst_queue[i]= '0;
 				end
 			end
@@ -101,13 +103,26 @@ module if_stage(
 		inst_queue[tail].if_packet.predict_target_pc = predict_target_pc;
 		proc2Imem_addr = {PC_reg[`XLEN-1:3], 3'b0};
 		for (int i = 0; i < `IQ_SIZE; ++i) begin
-			if (!ready[i] && Imem2proc_tag !=0 && Imem2proc_tag == inst_queue[i].recorded_response) begin
-                inst_queue[i].if_packet.valid = 1;
-                inst_queue[i].if_packet.inst = inst_queue[i].if_packet.PC[2] ? Imem2proc_data[63:32] : Imem2proc_data[31:0];
+		    if (!ready[i]) begin
+                if (Imem2proc_tag !=0 && Imem2proc_tag == inst_queue[i].recorded_response) begin
+                    inst_queue[i].if_packet.valid = 1;
+                    inst_queue[i].if_packet.inst = inst_queue[i].if_packet.PC[2] ? Imem2proc_data[63:32] : Imem2proc_data[31:0];
+                end
+                else begin
+                    if (i==tail) begin
+                        inst_queue[i].if_packet.valid = 0;
+                        inst_queue[i].if_packet.inst = 0;
+                    end
+                end
 			end
 		end
 	end
-	assign if_packet_out = inst_queue[head].if_packet;
+	assign if_packet_out.inst = inst_queue[head].if_packet.inst;
+	assign if_packet_out.NPC = inst_queue[head].if_packet.NPC;
+	assign if_packet_out.PC  = inst_queue[head].if_packet.PC;
+	assign if_packet_out.predict_taken = inst_queue[head].if_packet.predict_taken;
+	assign if_packet_out.predict_target_pc = inst_queue[head].if_packet.predict_target_pc;
+	assign if_packet_out.valid = inst_queue[head].if_packet.valid && if_is_enable;
 
 	
 	// assign proc2Imem_addr = {PC_reg[`XLEN-1:3], 3'b0};
@@ -159,13 +174,13 @@ module if_stage(
 		if (reset) begin
 			PC_reg <= `SD 0;
 		end else begin
-			if (!if_mem_hazard | branch_misprediction) begin
+			if (!(IQ_full | mem_busy) | branch_misprediction) begin
 				PC_reg <= `SD next_PC; // transition to next PC
 			end
 		end
 	end
 
 	assign current_response = (proc2Imem_command == BUS_LOAD)? Imem2proc_response:0;
-	assign proc2Imem_command = (!reset && !IQ_full && !if_mem_hazard)? BUS_LOAD : BUS_NONE;
+	assign proc2Imem_command = (!reset && !IQ_full && !mem_busy)? BUS_LOAD : BUS_NONE;
 
 endmodule  // module if_stage
