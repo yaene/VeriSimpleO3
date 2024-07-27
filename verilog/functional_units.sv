@@ -288,7 +288,6 @@ module mult_stage #(parameter num_stages = 4)(
 
 endmodule
 
-
 module mult #(parameter num_stages = 4)(
     input clock, reset,
     input [`XLEN-1:0] mcand, mplier,
@@ -303,7 +302,7 @@ module mult #(parameter num_stages = 4)(
     logic [`XLEN-1:0] mcand_out, mplier_out;
     logic [((num_stages-1)*`XLEN)-1:0] internal_products, internal_mcands, internal_mpliers;
     logic [(num_stages-2):0] internal_dones;
-    INSTR_READY_ENTRY [(num_stages-1):0] internal_instr;
+    INSTR_READY_ENTRY [(num_stages-2):0] internal_instr;
 
     mult_stage #(.num_stages(num_stages)) mstage [(num_stages-1):0] (
         .clock(clock),
@@ -312,7 +311,7 @@ module mult #(parameter num_stages = 4)(
         .mplier_in({internal_mpliers, mplier}),
         .mcand_in({internal_mcands, mcand}),
         .start({internal_dones, start}),
-        .stall({stall, {(num_stages-1){1'b0}}}), 
+        .stall(stall), 
         .product_out({product, internal_products}),
         .mplier_out({mplier_out, internal_mpliers}),
         .mcand_out({mcand_out, internal_mcands}),
@@ -330,42 +329,21 @@ module MultiplierControl(
     input wire reset,
     input INSTR_READY_ENTRY ready_inst_entry,
     input wire new_mul_request,   // new mul entry
-    input wire mult_done,          // previous nult done
-    input mult_written,
+//    input rs_mult_exec_stall,
     output reg start,              // able to start
-    output MULT_STATE current_state,
-    output INSTR_READY_ENTRY current_inst_entry,
-    output MULT_STATE next_state
+    output INSTR_READY_ENTRY current_inst_entry
 );
-
-    always_ff @(posedge clock or posedge reset) begin
-        if (reset) begin
-            current_state <= IDLE;
-            current_inst_entry <= '0;
-        end else begin
-            current_state <= next_state;
+    always_ff @(posedge clock or posedge reset)begin
+        if (reset)begin
+            current_inst_entry = '0;
         end
+        else begin
+            current_inst_entry = ready_inst_entry;
+        end
+            
     end
+    assign start = new_mul_request;
     
-    always_comb begin
-        next_state = current_state;
-        start = 0;
-        case (current_state)
-            IDLE: begin
-                if (new_mul_request && mult_written) begin
-                    start = 1;
-                    next_state = BUSY;
-                    current_inst_entry = ready_inst_entry;
-                end
-            end
-            BUSY: begin
-                if (mult_done) begin
-                    next_state = IDLE;
-                    current_inst_entry = '0;
-                end
-            end
-        endcase
-    end
 endmodule
 
 module pipelined_multiplication_unit(
@@ -373,7 +351,7 @@ module pipelined_multiplication_unit(
     input clock,
     input reset,
     input previous_done, // indicates the previous multiplication is done
-    input mult_written, // mult is written in wr_stage
+    input rs_mult_exec_stall, // mult is written in wr_stage
 
     output EX_WR_PACKET mult_output,
     output done, //indicates whether the multiplication is done
@@ -386,6 +364,7 @@ module pipelined_multiplication_unit(
     logic start;
     logic [`XLEN-1:0] result;
     INSTR_READY_ENTRY current_inst_entry;
+    INSTR_READY_ENTRY current_done_inst_entry;
     
     alu_info_extraction operands_extract(
         //Input
@@ -401,12 +380,12 @@ module pipelined_multiplication_unit(
         .reset(reset),
         .ready_inst_entry(ready_inst_entry),
         .new_mul_request(ready_inst_entry.ready),
-        .mult_done(previous_done),   
-        .mult_written(mult_written),
+//        .mult_done(previous_done),   
+//        .rs_mult_exec_stall(rs_mult_exec_stall),
         .start(start),
-        .current_state(current_state),
-        .current_inst_entry(current_inst_entry),
-        .next_state(next_state)
+//        .current_state(current_state),
+        .current_inst_entry(current_inst_entry)
+//        .next_state(next_state)
     );  
 
     mult mult_execute(
@@ -416,10 +395,11 @@ module pipelined_multiplication_unit(
         .mcand(opa),
         .mplier(opb),
         .start(start),
-        .stall(~mult_written),
+        .stall(rs_mult_exec_stall),
+        .current_inst_entry(current_inst_entry),
         //Outputs
         .product(result),
-        .current_inst_entry(current_inst_entry),
+        .current_done_inst_entry(current_done_inst_entry),
         .done(done)
     );
 //    assign mult_output.inst = current_inst_entry.instr.inst;
@@ -438,9 +418,9 @@ module pipelined_multiplication_unit(
         else begin
             mult_output.valid = 1;
             mult_output.value = result;
-            mult_output.rob_tag = current_inst_entry.rd_tag;
-            mult_output.inst = current_inst_entry.instr.inst;
-            mult_output.NPC = current_inst_entry.instr.NPC;
+            mult_output.rob_tag = current_done_inst_entry.rd_tag;
+            mult_output.inst = current_done_inst_entry.instr.inst;
+            mult_output.NPC = current_done_inst_entry.instr.NPC;
         end
     end
 
