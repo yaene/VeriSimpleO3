@@ -68,7 +68,7 @@ module hazard_detection_unit (
     assign if_is_flush = branch_misprediction | (if_mem_hazard & ~is_stall);
 
     assign alu_wr_enable = ~alu_wr_valid | alu_wr_written;
-    assign mult_wr_enable = ~mult_wr_valid | mult_wr_written;
+    assign mult_wr_enable = mult_wr_written;
     assign lb_wr_enable = ~lb_wr_valid | lb_wr_written;
     assign acu_wr_enable = ~acu_wr_valid | acu_wr_written;
 

@@ -245,65 +245,80 @@ module address_calculation_unit(
 endmodule
 
 module mult_stage #(parameter num_stages = 4)(
-                    input clock, reset, start,
-                    input [`XLEN-1:0] product_in, mplier_in, mcand_in,
+    input clock, reset, start, stall,
+    input [`XLEN-1:0] product_in, mplier_in, mcand_in,
+    input INSTR_READY_ENTRY current_inst_entry_in, 
 
-                    output logic done,
-                    output logic [`XLEN-1:0] product_out, mplier_out, mcand_out
-                );
-
-
+    output logic done,
+    output logic [`XLEN-1:0] product_out, mplier_out, mcand_out,
+    output INSTR_READY_ENTRY current_inst_entry_out 
+);
 
     logic [`XLEN-1:0] prod_in_reg, partial_prod_reg;
     logic [`XLEN-1:0] partial_product, next_mplier, next_mcand;
+    INSTR_READY_ENTRY current_inst_entry_reg; 
 
-    parameter num_each = `XLEN/num_stages;
+    parameter num_each = `XLEN / num_stages;
     assign product_out = prod_in_reg + partial_prod_reg;
 
     assign partial_product = mplier_in[(num_each-1):0] * mcand_in;
 
     assign next_mplier = {{num_each{1'b0}}, mplier_in[`XLEN-1:num_each]};
-    assign next_mcand = {mcand_in[`XLEN-1-num_each:0],{num_each{1'b0}}};
+    assign next_mcand = {mcand_in[`XLEN-1-num_each:0], {num_each{1'b0}}};
 
-    always_ff @(posedge clock) begin
-        prod_in_reg      <= product_in;
-        partial_prod_reg <= partial_product;
-        mplier_out       <= next_mplier;
-        mcand_out        <= next_mcand;
+    always_ff @(posedge clock or posedge reset) begin
+        if (reset) begin
+            prod_in_reg      <= `XLEN'b0;
+            partial_prod_reg <= `XLEN'b0;
+            mplier_out       <= `XLEN'b0;
+            mcand_out        <= `XLEN'b0;
+            current_inst_entry_reg <= '0; 
+            done             <= 1'b0;
+        end else if (!stall) begin
+            prod_in_reg      <= product_in;
+            partial_prod_reg <= partial_product;
+            mplier_out       <= next_mplier;
+            mcand_out        <= next_mcand;
+            current_inst_entry_reg <= current_inst_entry_in; 
+            done             <= start;
+        end
     end
-
-    // synopsys sync_set_reset "reset"
-    always_ff @(posedge clock) begin
-        if(reset)
-            done <= 1'b0;
-        else
-            done <= start;
-    end
+    // Output the current instr_entry_reg at this pipeline stage
+    assign current_inst_entry_out = current_inst_entry_reg;
 
 endmodule
 
-module mult  #(parameter num_stages = 4)(
-                input clock, reset,
-                input [`XLEN-1:0] mcand, mplier,
-                input start,                
-                output [`XLEN-1:0] product,
-                output done
-            );
-  logic [`XLEN-1:0] mcand_out, mplier_out;
-  logic [((num_stages-1)*`XLEN)-1:0] internal_products, internal_mcands, internal_mpliers;
-  logic [(num_stages-2):0] internal_dones;
+
+module mult #(parameter num_stages = 4)(
+    input clock, reset,
+    input [`XLEN-1:0] mcand, mplier,
+    input start,  
+    input stall,  
+    input INSTR_READY_ENTRY current_inst_entry, 
+    output [`XLEN-1:0] product,
+    output done,
+    output INSTR_READY_ENTRY current_done_inst_entry
+);
+
+    logic [`XLEN-1:0] mcand_out, mplier_out;
+    logic [((num_stages-1)*`XLEN)-1:0] internal_products, internal_mcands, internal_mpliers;
+    logic [(num_stages-2):0] internal_dones;
+    INSTR_READY_ENTRY [(num_stages-1):0] internal_instr;
 
     mult_stage #(.num_stages(num_stages)) mstage [(num_stages-1):0] (
         .clock(clock),
         .reset(reset),
-        .product_in({internal_products,`XLEN'h0}),
-        .mplier_in({internal_mpliers,mplier}),
-        .mcand_in({internal_mcands,mcand}),
-        .start({internal_dones,start}),
-        .product_out({product,internal_products}),
-        .mplier_out({mplier_out,internal_mpliers}),
-        .mcand_out({mcand_out,internal_mcands}),
-        .done({done,internal_dones})
+        .product_in({internal_products, `XLEN'h0}),
+        .mplier_in({internal_mpliers, mplier}),
+        .mcand_in({internal_mcands, mcand}),
+        .start({internal_dones, start}),
+        .stall({stall, {(num_stages-1){1'b0}}}), 
+        .product_out({product, internal_products}),
+        .mplier_out({mplier_out, internal_mpliers}),
+        .mcand_out({mcand_out, internal_mcands}),
+        .done({done, internal_dones}),
+        .current_inst_entry_in({internal_instr, current_inst_entry}),
+        .current_inst_entry_out({current_done_inst_entry, internal_instr})
     );
 
 endmodule
@@ -316,6 +331,7 @@ module MultiplierControl(
     input INSTR_READY_ENTRY ready_inst_entry,
     input wire new_mul_request,   // new mul entry
     input wire mult_done,          // previous nult done
+    input mult_written,
     output reg start,              // able to start
     output MULT_STATE current_state,
     output INSTR_READY_ENTRY current_inst_entry,
@@ -325,6 +341,7 @@ module MultiplierControl(
     always_ff @(posedge clock or posedge reset) begin
         if (reset) begin
             current_state <= IDLE;
+            current_inst_entry <= '0;
         end else begin
             current_state <= next_state;
         end
@@ -335,7 +352,7 @@ module MultiplierControl(
         start = 0;
         case (current_state)
             IDLE: begin
-                if (new_mul_request) begin
+                if (new_mul_request && mult_written) begin
                     start = 1;
                     next_state = BUSY;
                     current_inst_entry = ready_inst_entry;
@@ -344,7 +361,7 @@ module MultiplierControl(
             BUSY: begin
                 if (mult_done) begin
                     next_state = IDLE;
-                    current_inst_entry = 0;
+                    current_inst_entry = '0;
                 end
             end
         endcase
@@ -356,6 +373,7 @@ module pipelined_multiplication_unit(
     input clock,
     input reset,
     input previous_done, // indicates the previous multiplication is done
+    input mult_written, // mult is written in wr_stage
 
     output EX_WR_PACKET mult_output,
     output done, //indicates whether the multiplication is done
@@ -365,8 +383,7 @@ module pipelined_multiplication_unit(
 );
     logic [`XLEN-1:0] opa, opb;
     ALU_FUNC func;
-    logic clock, previous_done, start, reset;
-    logic done;
+    logic start;
     logic [`XLEN-1:0] result;
     INSTR_READY_ENTRY current_inst_entry;
     
@@ -385,6 +402,7 @@ module pipelined_multiplication_unit(
         .ready_inst_entry(ready_inst_entry),
         .new_mul_request(ready_inst_entry.ready),
         .mult_done(previous_done),   
+        .mult_written(mult_written),
         .start(start),
         .current_state(current_state),
         .current_inst_entry(current_inst_entry),
@@ -398,8 +416,10 @@ module pipelined_multiplication_unit(
         .mcand(opa),
         .mplier(opb),
         .start(start),
+        .stall(~mult_written),
         //Outputs
         .product(result),
+        .current_inst_entry(current_inst_entry),
         .done(done)
     );
 //    assign mult_output.inst = current_inst_entry.instr.inst;

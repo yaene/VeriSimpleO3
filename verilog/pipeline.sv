@@ -469,6 +469,7 @@ pipelined_multiplication_unit mult_0 (
     .clock(clock),
     .reset(reset),
     .previous_done(previous_mult_done),
+	.mult_written(mult_written),
     // outputs 
     .mult_output(mult_packet),
     .done(mult_done),
