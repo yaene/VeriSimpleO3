@@ -322,7 +322,7 @@ typedef struct packed {
 	logic [3:0] recorded_response;
 } IQ_PACKET;
 
-`define IQ_SIZE 16 // size of instruction queue
+`define IQ_SIZE 4 // size of instruction queue
 `define IQ_INDEX_SIZE $clog2(`IQ_SIZE) // size of instruction queue index (head/tail)
 
 //////////////////////////////////////////////
