@@ -15,6 +15,7 @@ module maptable(
   input logic [`ROB_TAG_LEN-1:0] rob_entry_in, // rob entry from ROB
   input logic [4:0] rd, // dest_reg from decoding stage
   input logic valid_wb, // valid from wb from ROB
+  input logic spec_wb, // valid from wb from ROB
   input logic [4:0] rd_wb, // dest_reg from wb
   input logic [`ROB_TAG_LEN-1:0] rob_entry_wb, // rob entry from wb from ROB
   input branch_speculating,
@@ -92,7 +93,7 @@ module maptable(
     next_ready_tag_table_buffer = ready_tag_table_buffer;
     if ((valid_wb) && (rd_wb != `ZERO_REG) && (rob_entry_wb == maptable[rd_wb])) begin
       next_ready_tag_table[rd_wb] = 1;
-      if (!branch_speculating) begin
+      if (!spec_wb) begin
         next_ready_tag_table_buffer[rd_wb] = 1;
       end
     end
@@ -110,16 +111,16 @@ module maptable(
         next_ready_tag_table_buffer[rd] = 0;
       end
     end
-    // if (branch_determined) begin
-    //   if (branch_misprediction) begin
-    //     next_maptable = maptable_buffer;
-    //     next_ready_tag_table = ready_tag_table_buffer;
-    //   end
-    //   else begin
-    //     next_maptable_buffer = next_maptable;
-    //     next_ready_tag_table_buffer = next_ready_tag_table;
-    //   end
-    // end
+    if (branch_determined) begin
+      if (branch_misprediction) begin
+        next_maptable = next_maptable_buffer;
+        next_ready_tag_table = next_ready_tag_table_buffer;
+      end
+      else begin
+        next_maptable_buffer = next_maptable;
+        next_ready_tag_table_buffer = next_ready_tag_table;
+      end
+    end
   end
 
 endmodule

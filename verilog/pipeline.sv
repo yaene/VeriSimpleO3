@@ -111,6 +111,7 @@ module pipeline (
 	logic [`XLEN-1:0] rob_read_value_rs2;      
 	logic pending_stores;                    
 	logic [4:0] rob_wr_dest_reg;                       
+	logic rob_wr_spec;                       
 	logic [`ROB_TAG_LEN-1:0] wr_rob_tag;              
 	logic rob_wr_valid;                          
 	ROB_ENTRY rob_head_entry;             
@@ -272,6 +273,7 @@ module pipeline (
 		.read_value_rs2(rob_read_value_rs2),
 		.pending_stores(pending_stores),
 		.wr_dest_reg(rob_wr_dest_reg),
+		.wr_spec(rob_wr_spec),
 		.wr_rob_tag(wr_rob_tag),
 		.wr_valid(rob_wr_valid),
 		.head_entry(rob_head_entry),
@@ -353,6 +355,7 @@ hazard_detection_unit hdu_0 (
 		.rd(is_packet.dest_reg_idx),
 		.valid_wb(rob_wr_valid),
 		.rd_wb(rob_wr_dest_reg),
+		.spec_wb(rob_wr_spec),
 		.rob_entry_wb(wr_rob_tag),
 		.branch_speculating(branch_in_exec),
 		.branch_determined(branch_determined),

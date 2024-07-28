@@ -37,6 +37,7 @@ module rob (input clock,
             output logic pending_stores,                    // whether there are any pending stores before load
             output [4:0] wr_dest_reg,                       // the destination register of the instruction writing back (for map table update)
             output [`ROB_TAG_LEN-1:0] wr_rob_tag,                        // the tag of the instruction writing back (for map table update)
+            output wr_spec,
             output wr_valid,                          // whether there is an instruction writing back
             output ROB_ENTRY head_entry,              // the entry of the next instn to commit
             output logic [`ROB_TAG_LEN-1:0] head,
@@ -83,7 +84,13 @@ module rob (input clock,
             end
         end
     end
-    
+
+     // clear entry of committed instruction
+    if (clear_head) begin
+        next_rob[head] = `EMPTY_ROB_ENTRY;
+    end
+
+   
     // allocate ROB entry
     if (allocate_tail) begin
         next_rob[tail] = '{`TRUE, NPC, inst, alloc_wr_mem, dest_reg,
@@ -91,28 +98,24 @@ module rob (input clock,
             alloc_value_ready, ~alloc_wr_mem, branch_speculating};
     end
     
-    // clear entry of committed instruction
-    if (clear_head) begin
-        next_rob[head] = `EMPTY_ROB_ENTRY;
-    end
-
     if (branch_determined) begin
         if (branch_misprediction) begin
             for (int i = 1; i <= ROB_SIZE; i++) begin
-                if (rob[i].spec) begin
-                    rob[i] = `EMPTY_ROB_ENTRY;
+                if (next_rob[i].spec) begin
+                    next_rob[i] = `EMPTY_ROB_ENTRY;
                 end
             end
         end
         else begin
             for (int i = 1; i <= ROB_SIZE + 1; i++) begin
-                if (rob[i].spec) begin
-                    rob[i].spec = `FALSE;
+                if (next_rob[i].spec) begin
+                    next_rob[i].spec = `FALSE;
                 end
             end
         end
     end
    end
+
     always_ff @(posedge clock) begin
         if (reset) begin
             head <= 1;
@@ -146,7 +149,7 @@ module rob (input clock,
     
     // if new slot was allocated move tail
     always_comb begin
-        tail_tracking = head;
+        tail_tracking = next_head;
         for (int i = 0; i < ROB_SIZE; i++) begin
             if (next_rob[tail_tracking].valid) begin
                 next_tail = tail_tracking;
@@ -154,7 +157,7 @@ module rob (input clock,
             end
         end
         next_tail = tail_tracking;
-    end
+     end
     
     // forwarding from cdb and rob to dependent store
     always_comb begin
@@ -216,6 +219,7 @@ module rob (input clock,
     // find dest reg for cdb data and repackage signals for map table
     assign wr_dest_reg = rob[cdb_data.rob_tag].dest_reg;
     assign wr_rob_tag = cdb_data.rob_tag;
+    assign wr_spec = rob[cdb_data.rob_tag].spec;
     assign wr_valid = cdb_data.valid;
 endmodule
     
