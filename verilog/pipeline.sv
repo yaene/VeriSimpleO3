@@ -87,6 +87,11 @@ module pipeline (
     logic lb_wr_enable;
     logic acu_wr_enable;
 
+	logic is_branch; 
+	logic alu_branch;
+	logic branch_in_exec;
+	logic branch_determined;
+
 	
 	// Outputs from IF-Stage
 	logic [`XLEN-1:0] proc2Imem_addr;
@@ -279,12 +284,9 @@ module pipeline (
 //             Hazard Detection                 //
 //                                              //
 //////////////////////////////////////////////////
-logic is_branch; 
-logic alu_branch;
 assign is_branch = is_packet.cond_branch | is_packet.uncond_branch;
 assign alu_branch = rs_alu_out.ready & (rs_alu_out.instr.cond_branch 
 		| rs_alu_out.instr.uncond_branch);
-logic branch_in_exec;
 
 hazard_detection_unit hdu_0 (
 	// inputs
@@ -440,8 +442,6 @@ ReservationStation #(.NO_WAIT_RS2(0), .RS_DEPTH(4)) alu_rs  (
 	assign rs_alu_NPC_out        = rs_alu_out.instr.NPC;
 	assign rs_alu_IR_out         = rs_alu_out.instr.inst;
 	assign rs_alu_valid_inst_out = rs_alu_out.instr.valid;
-
-	logic branch_determined;
 
 alu_execution_unit alu_0 (
 	// inputs

@@ -30,8 +30,14 @@ module maptable(
   logic [`ROB_TAG_LEN-1:0] maptable[31:0];
   logic ready_tag_table[31:0];
 
+  logic [`ROB_TAG_LEN-1:0] next_maptable[31:0];
+  logic next_ready_tag_table[31:0];
+
   logic [`ROB_TAG_LEN-1:0] maptable_buffer[31:0];
   logic ready_tag_table_buffer[31:0];
+
+  logic [`ROB_TAG_LEN-1:0] next_maptable_buffer[31:0];
+  logic next_ready_tag_table_buffer[31:0];
 
 
   // mapped rs1
@@ -71,36 +77,49 @@ module maptable(
         ready_tag_table_buffer[i] = 0;
       end
     end
-    if (branch_determined) begin
-      if (branch_misprediction) begin
-        maptable = maptable_buffer;
-        ready_tag_table = ready_tag_table_buffer;
-      end
-      else begin
-        maptable_buffer = maptable;
-        ready_tag_table_buffer = ready_tag_table;
-      end
+    else begin
+      maptable <= next_maptable;
+      ready_tag_table <= next_ready_tag_table;
+      maptable_buffer <= next_maptable_buffer;
+      ready_tag_table_buffer <= next_ready_tag_table_buffer;
     end
+  end
+
+  always_comb begin
+    next_maptable = maptable;
+    next_ready_tag_table = ready_tag_table;
+    next_maptable_buffer = maptable_buffer;
+    next_ready_tag_table_buffer = ready_tag_table_buffer;
     if ((valid_wb) && (rd_wb != `ZERO_REG) && (rob_entry_wb == maptable[rd_wb])) begin
-      ready_tag_table[rd_wb] = 1;
+      next_ready_tag_table[rd_wb] = 1;
       if (!branch_speculating) begin
-        ready_tag_table_buffer[rd_wb] = 1;
+        next_ready_tag_table_buffer[rd_wb] = 1;
       end
     end
     if ((commit) && (rd_commit != `ZERO_REG) && (rob_entry_commit == maptable[rd_commit])) begin
-      maptable[rd_commit] = 0;
-      ready_tag_table[rd_commit] = 0;
+      next_maptable[rd_commit] = 0;
+      next_ready_tag_table[rd_commit] = 0;
       if (!branch_speculating) begin
-        maptable_buffer[rd_commit] = 0;
-        ready_tag_table_buffer[rd_commit] = 0;
+        next_maptable_buffer[rd_commit] = 0;
+        next_ready_tag_table_buffer[rd_commit] = 0;
       end
     end
     if (enable && rd != `ZERO_REG) begin
-      maptable[rd] = rob_entry_in;
-      ready_tag_table[rd] = 0;
+      next_maptable[rd] = rob_entry_in;
+      next_ready_tag_table[rd] = 0;
       if (!branch_speculating) begin
-        maptable_buffer[rd] = rob_entry_in;
-        ready_tag_table_buffer[rd] = 0;
+        next_maptable_buffer[rd] = rob_entry_in;
+        next_ready_tag_table_buffer[rd] = 0;
+      end
+    end
+    if (branch_determined) begin
+      if (branch_misprediction) begin
+        next_maptable = maptable_buffer;
+        next_ready_tag_table = ready_tag_table_buffer;
+      end
+      else begin
+        next_maptable_buffer = next_maptable;
+        next_ready_tag_table_buffer = next_ready_tag_table;
       end
     end
   end
