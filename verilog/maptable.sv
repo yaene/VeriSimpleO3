@@ -99,10 +99,8 @@ module maptable(
     if ((commit) && (rd_commit != `ZERO_REG) && (rob_entry_commit == maptable[rd_commit])) begin
       next_maptable[rd_commit] = 0;
       next_ready_tag_table[rd_commit] = 0;
-      if (!branch_speculating) begin
         next_maptable_buffer[rd_commit] = 0;
         next_ready_tag_table_buffer[rd_commit] = 0;
-      end
     end
     if (enable && rd != `ZERO_REG) begin
       next_maptable[rd] = rob_entry_in;
@@ -112,16 +110,16 @@ module maptable(
         next_ready_tag_table_buffer[rd] = 0;
       end
     end
-    if (branch_determined) begin
-      if (branch_misprediction) begin
-        next_maptable = maptable_buffer;
-        next_ready_tag_table = ready_tag_table_buffer;
-      end
-      else begin
-        next_maptable_buffer = next_maptable;
-        next_ready_tag_table_buffer = next_ready_tag_table;
-      end
-    end
+    // if (branch_determined) begin
+    //   if (branch_misprediction) begin
+    //     next_maptable = maptable_buffer;
+    //     next_ready_tag_table = ready_tag_table_buffer;
+    //   end
+    //   else begin
+    //     next_maptable_buffer = next_maptable;
+    //     next_ready_tag_table_buffer = next_ready_tag_table;
+    //   end
+    // end
   end
 
 endmodule
