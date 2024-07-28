@@ -61,80 +61,74 @@ module rob (input clock,
     logic [`ROB_TAG_LEN-1:0] tag_clearing;
     
     ROB_ENTRY [ROB_SIZE:1] rob; // ROB entries
+    ROB_ENTRY [ROB_SIZE:1] next_rob; // ROB entries
     
+   always_comb begin 
+    next_rob = rob;
+        // read data from CDB
+    if (cdb_data.valid) begin
+        if (rob[cdb_data.rob_tag].wr_mem) begin
+                next_rob[cdb_data.rob_tag].dest_addr     = cdb_data.value;
+                next_rob[cdb_data.rob_tag].address_ready = `TRUE;
+        end
+        else begin
+            // pass CDB data to corresponding ROB and any dep. stores
+            for (int i = 1; i <= ROB_SIZE; ++i) begin
+                if (i == cdb_data.rob_tag ||
+                (rob[i].wr_mem && rob[i].store_dep == cdb_data.rob_tag &&
+                !rob[i].value_ready)) begin
+                    next_rob[i].value       = cdb_data.value;
+                    next_rob[i].value_ready = `TRUE;
+                end
+            end
+        end
+    end
     
+    // allocate ROB entry
+    if (allocate_tail) begin
+        next_rob[tail] = '{`TRUE, NPC, inst, alloc_wr_mem, dest_reg,
+            `XLEN'b0, alloc_value, alloc_store_dep, alloc_mem_size,
+            alloc_value_ready, ~alloc_wr_mem, branch_speculating};
+    end
+    
+    // clear entry of committed instruction
+    if (clear_head) begin
+        next_rob[head] = `EMPTY_ROB_ENTRY;
+    end
+
+    if (branch_determined) begin
+        if (branch_misprediction) begin
+            for (int i = 1; i <= ROB_SIZE; i++) begin
+                if (rob[i].spec) begin
+                    rob[i] = `EMPTY_ROB_ENTRY;
+                end
+            end
+        end
+        else begin
+            for (int i = 1; i <= ROB_SIZE + 1; i++) begin
+                if (rob[i].spec) begin
+                    rob[i].spec = `FALSE;
+                end
+            end
+        end
+    end
+   end
     always_ff @(posedge clock) begin
         if (reset) begin
-            head = 1;
-            tail = 1;
+            head <= 1;
+            tail <= 1;
             // branch_reg = 0;
             for (int i = 1; i <= ROB_SIZE; i++) begin
                 rob[i] <= `EMPTY_ROB_ENTRY;
             end
         end
         else begin
-            // read data from CDB
-            if (cdb_data.valid) begin
-                if (rob[cdb_data.rob_tag].wr_mem) begin
-                    rob[cdb_data.rob_tag].dest_addr     <= cdb_data.value;
-                    rob[cdb_data.rob_tag].address_ready <= `TRUE;
-                end
-                else begin
-                    // pass CDB data to corresponding ROB and any dep. stores
-                    for (int i = 1; i <= ROB_SIZE; ++i) begin
-                        if (i == cdb_data.rob_tag ||
-                        (rob[i].wr_mem && rob[i].store_dep == cdb_data.rob_tag &&
-                        !rob[i].value_ready)) begin
-                        rob[i].value       <= cdb_data.value;
-                        rob[i].value_ready <= `TRUE;
-                    end
-                end
-            end
-        end
-        
-        // allocate ROB entry
-        if (allocate_tail) begin
-            rob[tail] <= '{`TRUE, NPC, inst, alloc_wr_mem, dest_reg,
-            `XLEN'b0, alloc_value, alloc_store_dep, alloc_mem_size,
-            alloc_value_ready, ~alloc_wr_mem, branch_speculating};
-        end
-        
-        // clear entry of committed instruction
-        if (clear_head) begin
-            rob[head] <= `EMPTY_ROB_ENTRY;
-        end
-
-        // if (branch_determined & branch_misprediction) begin
-        //     tag_clearing = (branch_reg == ROB_SIZE) ? 1 : branch_reg + 1;
-        //     for (int i = 1; i < ROB_SIZE; i++) begin
-        //         if (tag_clearing != head) begin
-        //             rob[tag_clearing] = `EMPTY_ROB_ENTRY;
-        //             tag_clearing = (tag_clearing == ROB_SIZE) ? 1 : tag_clearing + 1;
-        //         end
-        //     end
-        // end
-        if (branch_determined) begin
-            if (branch_misprediction) begin
-                tag_clearing = head;
-                for (int i = 1; i < ROB_SIZE; i++) begin
-                    if (rob[tag_clearing].spec) begin
-                        rob[tag_clearing] = `EMPTY_ROB_ENTRY;
-                    end
-                    tag_clearing = (tag_clearing == ROB_SIZE) ? 1 : tag_clearing + 1;
-                end
-            end
-            else begin
-                for (int i = 1; i < ROB_SIZE + 1; i++) begin
-                    if (rob[i].spec) begin
-                        rob[i].spec = `FALSE;
-                    end
-                end
-            end
-        end
-        
+       
         // update head and tail
         head <= next_head;
         tail <= next_tail;
+
+        rob <= next_rob;
     end
     end
     
@@ -154,18 +148,12 @@ module rob (input clock,
     always_comb begin
         tail_tracking = head;
         for (int i = 0; i < ROB_SIZE; i++) begin
-            if (rob[tail_tracking].valid) begin
+            if (next_rob[tail_tracking].valid) begin
                 next_tail = tail_tracking;
                 tail_tracking = (tail_tracking == ROB_SIZE) ? 1 : tail_tracking + 1;
             end
         end
         next_tail = tail_tracking;
-        if (alloc_enable && !full) begin
-            if (tail_tracking == ROB_SIZE)
-                next_tail = 1;
-            else
-                next_tail = tail_tracking + 1;
-        end
     end
     
     // forwarding from cdb and rob to dependent store
