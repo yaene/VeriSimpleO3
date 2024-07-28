@@ -223,6 +223,7 @@ module is_stage (
 	// input from ROB
 	input [`XLEN-1:0] rs1_read_rob_value,
 	input [`XLEN-1:0] rs2_read_rob_value, 
+	input branch_speculating,
 	
 	// output to hazard detection
 	output is_ld_st_inst,
@@ -253,6 +254,8 @@ module is_stage (
     assign alloc_value_in = id_packet_out.rs2_value;
     assign alloc_value_in_valid = (alloc_wr_mem && maptable_packet_rs2.rob_tag_val == 0);
     assign alloc_store_dep = maptable_packet_rs2.rob_tag_val;
+
+	assign id_packet_out.spec = branch_speculating;
 
 	DEST_REG_SEL dest_reg_select; 
 

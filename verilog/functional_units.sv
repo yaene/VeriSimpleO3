@@ -109,6 +109,7 @@ module alu_execution_unit(
     output logic [`XLEN-1:0] target_PC, // correct PC for branch misprediction
     output logic take_branch,
     output logic branch_misprediction // indicates whether branch was predicted to be taken
+    ,output branch_determined
 );
     logic brcond_result;
     logic [`XLEN-1:0] opa, opb;
@@ -145,6 +146,7 @@ module alu_execution_unit(
 
     assign alu_output.inst = ready_inst_entry.instr.inst;
     assign alu_output.NPC = ready_inst_entry.instr.NPC;
+    assign alu_output.spec = ready_inst_entry.spec;
 
      // ultimate "take branch" signal:
      // unconditional, or conditional and the condition is true
@@ -156,6 +158,8 @@ module alu_execution_unit(
          (take_branch & (ready_inst_entry.instr.predict_target_pc != branch_target_PC))
         );
     assign target_PC = take_branch ? branch_target_PC : alu_output.NPC;
+    assign branch_determined = ready_inst_entry.ready & alu_output.valid & (ready_inst_entry.instr.uncond_branch | ready_inst_entry.instr.cond_branch);
+
     always_comb begin
         if (~ready_inst_entry.ready) begin
             alu_output.valid = 0;
@@ -219,6 +223,8 @@ module address_calculation_unit(
     assign load_buffer_packet.NPC = ready_inst_entry.instr.NPC;
     assign store_result.inst = ready_inst_entry.instr.inst;
     assign load_buffer_packet.inst = ready_inst_entry.instr.inst;
+    assign store_result.spec = ready_inst_entry.spec;
+    assign load_buffer_packet.spec = ready_inst_entry.spec;
 
     always_comb begin
         load_buffer_packet.address = result;

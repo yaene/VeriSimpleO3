@@ -95,6 +95,7 @@ module mem_stage(
 	assign lb_ex_packet_out.inst = lb_packet_in.inst;
 	assign lb_ex_packet_out.rob_tag = lb_packet_in.rd_tag;
 	assign lb_ex_packet_out.value = mem_result_out;
+	assign lb_ex_packet_out.spec = lb_packet_in.spec;
 
 	// Determine the command that must be sent to mem
 	assign proc2Dmem_command =

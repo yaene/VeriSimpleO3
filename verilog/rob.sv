@@ -4,7 +4,7 @@
 
 `timescale 1ns/100ps
 
-`define EMPTY_ROB_ENTRY '{`FALSE, 31'b0, `XLEN'b0, `FALSE, `ZERO_REG, `XLEN'b0, `XLEN'b0, `ROB_TAG_LEN'b0, 3'b0, `FALSE, `FALSE}
+`define EMPTY_ROB_ENTRY '{`FALSE, 31'b0, `XLEN'b0, `FALSE, `ZERO_REG, `XLEN'b0, `XLEN'b0, `ROB_TAG_LEN'b0, 3'b0, `FALSE, `FALSE, `FALSE}
 
 module rob (input clock,
             input reset,
@@ -25,6 +25,10 @@ module rob (input clock,
            
             input [`XLEN-1:0] load_address,           // to check for any pending stores
             input [`ROB_TAG_LEN-1:0] load_rob_tag,    // rob entry of load to check for pending stores
+
+            input branch_speculating,
+            input branch_determined,
+            input branch_misprediction,
             
             output full,                              // is ROB full?
             output [`ROB_TAG_LEN-1:0] alloc_slot,     // rob tag of new instruction
@@ -38,10 +42,11 @@ module rob (input clock,
             output logic [`ROB_TAG_LEN-1:0] head,
             output head_ready
             `ifdef DEBUG
-            ,output ROB_ENTRY rob0,
-            output ROB_ENTRY rob1,
+            ,output ROB_ENTRY rob1,
             output ROB_ENTRY rob2,
-            output ROB_ENTRY rob3
+            output ROB_ENTRY rob3,
+            output ROB_ENTRY rob4,
+            output [`ROB_TAG_LEN-1:0] branch_reg
             `endif
             );
     parameter ROB_SIZE = 4;
@@ -52,6 +57,8 @@ module rob (input clock,
     logic [`XLEN-1:0] alloc_value;
     logic alloc_value_ready;
     logic [`ROB_TAG_LEN-1:0] tag_tracking; // to track tags
+    logic [`ROB_TAG_LEN-1:0] tail_tracking;
+    logic [`ROB_TAG_LEN-1:0] tag_clearing;
     
     ROB_ENTRY [ROB_SIZE:1] rob; // ROB entries
     
@@ -60,7 +67,7 @@ module rob (input clock,
         if (reset) begin
             head = 1;
             tail = 1;
-            tag_tracking = 1;
+            // branch_reg = 0;
             for (int i = 1; i <= ROB_SIZE; i++) begin
                 rob[i] <= `EMPTY_ROB_ENTRY;
             end
@@ -89,12 +96,40 @@ module rob (input clock,
         if (allocate_tail) begin
             rob[tail] <= '{`TRUE, NPC, inst, alloc_wr_mem, dest_reg,
             `XLEN'b0, alloc_value, alloc_store_dep, alloc_mem_size,
-            alloc_value_ready, ~alloc_wr_mem};
+            alloc_value_ready, ~alloc_wr_mem, branch_speculating};
         end
         
         // clear entry of committed instruction
         if (clear_head) begin
             rob[head] <= `EMPTY_ROB_ENTRY;
+        end
+
+        // if (branch_determined & branch_misprediction) begin
+        //     tag_clearing = (branch_reg == ROB_SIZE) ? 1 : branch_reg + 1;
+        //     for (int i = 1; i < ROB_SIZE; i++) begin
+        //         if (tag_clearing != head) begin
+        //             rob[tag_clearing] = `EMPTY_ROB_ENTRY;
+        //             tag_clearing = (tag_clearing == ROB_SIZE) ? 1 : tag_clearing + 1;
+        //         end
+        //     end
+        // end
+        if (branch_determined) begin
+            if (branch_misprediction) begin
+                tag_clearing = head;
+                for (int i = 1; i < ROB_SIZE; i++) begin
+                    if (rob[tag_clearing].spec) begin
+                        rob[tag_clearing] = `EMPTY_ROB_ENTRY;
+                    end
+                    tag_clearing = (tag_clearing == ROB_SIZE) ? 1 : tag_clearing + 1;
+                end
+            end
+            else begin
+                for (int i = 1; i < ROB_SIZE + 1; i++) begin
+                    if (rob[i].spec) begin
+                        rob[i].spec = `FALSE;
+                    end
+                end
+            end
         end
         
         // update head and tail
@@ -117,12 +152,19 @@ module rob (input clock,
     
     // if new slot was allocated move tail
     always_comb begin
-        next_tail = tail;
+        tail_tracking = head;
+        for (int i = 0; i < ROB_SIZE; i++) begin
+            if (rob[tail_tracking].valid) begin
+                next_tail = tail_tracking;
+                tail_tracking = (tail_tracking == ROB_SIZE) ? 1 : tail_tracking + 1;
+            end
+        end
+        next_tail = tail_tracking;
         if (alloc_enable && !full) begin
-            if (tail == ROB_SIZE)
+            if (tail_tracking == ROB_SIZE)
                 next_tail = 1;
             else
-                next_tail = tail + 1;
+                next_tail = tail_tracking + 1;
         end
     end
     
@@ -147,8 +189,7 @@ module rob (input clock,
         if (rob[load_rob_tag].valid && (load_rob_tag != head)) begin
             tag_tracking = (load_rob_tag == 1) ? ROB_SIZE  : load_rob_tag - 1;
             for (int i = 1; i < ROB_SIZE; i++) begin
-                if (rob[tag_tracking].wr_mem && 
-                (!rob[tag_tracking].address_ready || (rob[tag_tracking].address_ready && (rob[tag_tracking].dest_addr == load_address)))) begin
+                if (rob[tag_tracking].wr_mem && (!rob[tag_tracking].address_ready || (rob[tag_tracking].address_ready && (rob[tag_tracking].dest_addr == load_address)))) begin
                     pending_stores = `TRUE;
                 end
                 if (tag_tracking != head) begin
@@ -163,10 +204,10 @@ module rob (input clock,
 
 
     `ifdef DEBUG
-    assign rob0 = rob[1];
-    assign rob1 = rob[2];
-    assign rob2 = rob[3];
-    assign rob3 = rob[4];
+    assign rob1 = rob[1];
+    assign rob2 = rob[2];
+    assign rob3 = rob[3];
+    assign rob4 = rob[4];
     `endif
     
     // address ready by default on non-stores
