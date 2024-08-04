@@ -21,7 +21,7 @@ module load_buffer (
     output logic read_mem // going to read mem
 );
 
-    LB_PACKET lb_packet;
+    LB_PACKET lb_packet, lb_packet_next;
 
     always_ff @(posedge clock) begin
         if (reset) begin
@@ -29,18 +29,7 @@ module load_buffer (
             full <= `FALSE;
         end
         else begin
-            if (!full) begin
-                if (alloc_enable & lb_packet_in.valid) begin
-                    lb_packet <= lb_packet_in;
-                    full <= `TRUE;
-                end
-            end
-            else begin
-                if (Dmem_ready) begin
-                    lb_packet <= '0;
-                    full <= `FALSE;
-                end
-            end
+            lb_packet <= lb_packet_next;
         end
     end
 
@@ -48,22 +37,25 @@ module load_buffer (
 
     assign load_address = lb_packet.address;
     assign load_rob_tag = lb_packet.rd_tag;
+    assign lb_packet_out = lb_packet;
+    assign full = lb_packet.valid & ~Dmem_ready;
 
     always_comb begin
-        lb_packet_out = lb_packet;
+        lb_packet_next = lb_packet;
+        if (~full & lb_packet_in.valid & alloc_enable) begin
+            lb_packet_next = lb_packet_in;
+        end else if(Dmem_ready) begin
+            lb_packet_next = '0;
+        end
         if (branch_determined) begin
-            if (branch_misprediction) begin
-                lb_packet_out = '0;
+            if (branch_misprediction & lb_packet_next.spec) begin
+                lb_packet_next = '0;
             end
             else begin
-                lb_packet_out.spec = `FALSE;
+                lb_packet_next.spec = `FALSE;
             end
         end
-        // if (~read_mem || lb_exec_stall) begin
-        //     // make sure that if we have no result available
-        //     // it is not accidentally put on CDB
-        //     lb_packet_out.valid = `FALSE;
-        // end
+
     end
     
 
