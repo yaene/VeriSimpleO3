@@ -12,6 +12,7 @@ module hazard_detection_unit (
     input is_valid_inst,
     input commit_wr_mem,
     input lb_read_mem,
+    input Dmem_wait,
     input is_branch,
     input alu_branch,
     input branch_misprediction,
@@ -26,6 +27,7 @@ module hazard_detection_unit (
     input acu_wr_mem,
     input acu_rd_mem,
 
+    output if_mem_hazard,
     output if_enable,
     output if_is_enable,
     output if_is_flush, 
@@ -54,7 +56,7 @@ module hazard_detection_unit (
         | (~is_ld_st_inst & ~is_alu_inst & rs_mult_full)
         | branch_in_exec;
 
-    assign if_mem_hazard = commit_wr_mem | lb_read_mem;
+    assign if_mem_hazard = commit_wr_mem | (lb_read_mem && ~Dmem_wait);
 
     assign is_enable = ~is_stall & is_valid_inst & ~branch_misprediction;
 
@@ -77,7 +79,7 @@ module hazard_detection_unit (
 
     assign rs_alu_exec_stall = ~alu_wr_enable;
     assign rs_mult_exec_stall = ~mult_wr_enable;
-    assign lb_exec_stall = (commit_wr_mem | ~lb_wr_enable);
+    assign lb_exec_stall = (commit_wr_mem | ~lb_wr_enable | Dmem_wait);
 
     always_ff @(posedge clock) begin
         if (reset) begin

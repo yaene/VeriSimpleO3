@@ -17,7 +17,7 @@
 //////////////////////////////////////////////
 
 `define NUM_MEM_TAGS           8
-`define MEM_LATENCY_IN_CYCLES  0
+`define MEM_LATENCY_IN_CYCLES  ( $urandom_range(0, 5) )
 
 `define MEM_SIZE_IN_BYTES      (64*1024)
 `define MEM_64BIT_LINES        (`MEM_SIZE_IN_BYTES/8)
@@ -316,6 +316,14 @@ typedef struct packed {
 	logic predict_taken; // to detect mispredictions
 	logic [`XLEN-1:0] predict_target_pc;
 } IF_ID_PACKET;
+
+typedef struct packed {
+	IF_ID_PACKET if_packet;
+	logic [3:0] recorded_response;
+} IQ_PACKET;
+
+`define IQ_SIZE 16 // size of instruction queue
+`define IQ_INDEX_SIZE $clog2(`IQ_SIZE) // size of instruction queue index (head/tail)
 
 //////////////////////////////////////////////
 //

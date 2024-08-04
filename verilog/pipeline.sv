@@ -77,6 +77,7 @@ module pipeline (
 );
 
 	// hazard detection unit outputs
+	logic if_mem_hazard;
     logic if_enable;
     logic if_is_enable;
     logic if_is_flush; // branch misprediction
@@ -96,6 +97,7 @@ module pipeline (
 	
 	// Outputs from IF-Stage
 	logic [`XLEN-1:0] proc2Imem_addr;
+	logic [1:0] proc2Imem_command;
 	IF_ID_PACKET if_packet;
 
 	// Outputs from IF/IS Pipeline Register
@@ -159,6 +161,8 @@ module pipeline (
 	logic [1:0]  proc2Dmem_command;
 	MEM_SIZE proc2Dmem_size;
 	logic mem_busy;
+	logic Dmem_wait;
+	logic Dmem_ready;
 	
 	// Outputs from Commit-Stage  (These loop back to the register file in issue)
 	COMMIT_PACKET commit_packet;	
@@ -174,7 +178,7 @@ module pipeline (
 	assign pipeline_commit_NPC = commit_packet.NPC;
 	
 	assign proc2mem_command =
-	     (proc2Dmem_command == BUS_NONE) ? BUS_LOAD : proc2Dmem_command;
+	     (proc2Dmem_command == BUS_NONE) ? proc2Imem_command : proc2Dmem_command;
 	assign proc2mem_addr =
 	     (proc2Dmem_command == BUS_NONE) ? proc2Imem_addr : proc2Dmem_addr;
 	//if it's an instruction, then load a double word (64 bits)
@@ -205,9 +209,13 @@ module pipeline (
 		.branch_misprediction(branch_misprediction),
 		.ex_target_pc(ex_target_pc),
 		.Imem2proc_data(mem2proc_data),
+		.Imem2proc_response(mem2proc_response),
+		.Imem2proc_tag(mem2proc_tag),
+		.if_mem_hazard(if_mem_hazard),
 		
 		// Outputs
 		.proc2Imem_addr(proc2Imem_addr),
+		.proc2Imem_command(proc2Imem_command),
 		.if_packet_out(if_packet)
 	);
 
@@ -280,8 +288,8 @@ module pipeline (
 logic is_branch; 
 logic alu_branch;
 assign is_branch = is_packet.cond_branch | is_packet.uncond_branch;
-assign alu_branch = rs_alu_out.ready & rs_alu_out.instr.cond_branch 
-		| rs_alu_out.instr.uncond_branch;
+assign alu_branch = rs_alu_out.ready & (rs_alu_out.instr.cond_branch 
+		| rs_alu_out.instr.uncond_branch);
 
 hazard_detection_unit hdu_0 (
 	// inputs
@@ -297,6 +305,7 @@ hazard_detection_unit hdu_0 (
 	.is_valid_inst(is_packet.valid),
 	.commit_wr_mem(commit_packet.wr_mem),
 	.lb_read_mem(lb_read_mem),
+	.Dmem_wait(Dmem_wait),
 	.is_branch(is_branch),
 	.alu_branch(alu_branch),
 	.branch_misprediction(branch_misprediction),
@@ -312,6 +321,7 @@ hazard_detection_unit hdu_0 (
 	.acu_rd_mem(acu_ld_packet.valid),
 
 	// outputs
+	.if_mem_hazard(if_mem_hazard),
     .if_enable(if_enable),
     .if_is_enable(if_is_enable),
     .if_is_flush(if_is_flush), // branch misprediction
@@ -503,6 +513,7 @@ load_buffer load_buffer_0 (
 	.alloc_enable(`TRUE), 
 	.pending_stores(pending_stores),
 	.lb_exec_stall(lb_exec_stall),
+	.Dmem_ready(Dmem_ready),
 	// outputs
 	.lb_packet_out(lb_packet),
 	.full(lb_full),
@@ -517,14 +528,19 @@ mem_stage mem_stage_0 (// Inputs
 		.lb_packet_in(lb_packet),
 		.read_mem(lb_read_mem),
 		.cmt_packet_in(commit_packet),
+		.lb_wr_enable(lb_wr_enable),
 		.Dmem2proc_data(mem2proc_data[`XLEN-1:0]),
+		.Dmem2proc_response(mem2proc_response),
+		.Dmem2proc_tag(mem2proc_tag),
 		
 		// Outputs
 		.lb_ex_packet_out(lb_ex_packet),
 		.proc2Dmem_command(proc2Dmem_command),
 		.proc2Dmem_size(proc2Dmem_size),
 		.proc2Dmem_addr(proc2Dmem_addr),
-		.proc2Dmem_data(proc2Dmem_data)
+		.proc2Dmem_data(proc2Dmem_data),
+		.Dmem_wait(Dmem_wait),
+		.Dmem_ready(Dmem_ready)
 	);
 
 
