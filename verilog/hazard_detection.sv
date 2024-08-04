@@ -50,8 +50,8 @@ module hazard_detection_unit (
 
     assign is_stall = rob_full
         | (is_ld_st_inst & rs_ld_st_full)
-        | (~is_ld_st_inst & rs_alu_full)
-        | (~is_ld_st_inst & rs_mult_full)
+        | (is_alu_inst & rs_alu_full)
+        | (~is_ld_st_inst & ~is_alu_inst & rs_mult_full)
         | branch_in_exec;
 
     assign if_mem_hazard = commit_wr_mem | lb_read_mem;
