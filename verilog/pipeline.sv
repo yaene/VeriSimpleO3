@@ -500,6 +500,8 @@ pipelined_multiplication_unit mult_0 (
     .ready_inst_entry(rs_mult_out),
     .clock(clock),
     .reset(reset),
+	.branch_determined(branch_determined),
+	.branch_misprediction(branch_misprediction),
     .previous_done(previous_mult_done),
     .rs_mult_exec_stall(rs_mult_exec_stall),
     // outputs 
