@@ -37,7 +37,6 @@ module load_buffer (
 
     assign load_address = lb_packet.address;
     assign load_rob_tag = lb_packet.rd_tag;
-    assign lb_packet_out = lb_packet;
     assign full = lb_packet.valid & ~Dmem_ready;
 
     always_comb begin
@@ -56,6 +55,18 @@ module load_buffer (
             end
         end
 
+    end
+
+    always_comb begin
+        lb_packet_out = lb_packet;
+        if (branch_determined) begin
+            if (branch_misprediction & lb_packet.spec) begin
+                lb_packet_out = '0;
+            end
+            else begin
+                lb_packet_out.spec = `FALSE;
+            end
+        end
     end
     
 
