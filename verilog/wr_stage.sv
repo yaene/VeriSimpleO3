@@ -1,6 +1,6 @@
 `timescale 1ns/100ps
 
-module wr_stage #(parameter FU_NUM=3) (
+module wr_stage #(parameter FU_NUM=4) (
     // - FU_NUM: number of functional units WR has to arbitrate
     input clock,
     input reset,
