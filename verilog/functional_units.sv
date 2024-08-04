@@ -27,11 +27,6 @@ module alu(
             ALU_SRL:      result = opa >> opb[4:0];
             ALU_SLL:      result = opa << opb[4:0];
             ALU_SRA:      result = signed_opa >>> opb[4:0]; // arithmetic from logical shift
-//            ALU_MUL:      result = signed_mul[`XLEN-1:0];
-//            ALU_MULH:     result = signed_mul[2*`XLEN-1:`XLEN];
-//            ALU_MULHSU:   result = mixed_mul[2*`XLEN-1:`XLEN];
-//            ALU_MULHU:    result = unsigned_mul[2*`XLEN-1:`XLEN];
-
             default:      result = `XLEN'hfacebeec;  // here to prevent latches
         endcase
     end
@@ -329,7 +324,6 @@ module MultiplierControl(
     input wire reset,
     input INSTR_READY_ENTRY ready_inst_entry,
     input wire new_mul_request,   // new mul entry
-//    input rs_mult_exec_stall,
     output reg start,              // able to start
     output INSTR_READY_ENTRY current_inst_entry
 );
@@ -380,12 +374,8 @@ module pipelined_multiplication_unit(
         .reset(reset),
         .ready_inst_entry(ready_inst_entry),
         .new_mul_request(ready_inst_entry.ready),
-//        .mult_done(previous_done),   
-//        .rs_mult_exec_stall(rs_mult_exec_stall),
         .start(start),
-//        .current_state(current_state),
         .current_inst_entry(current_inst_entry)
-//        .next_state(next_state)
     );  
 
     mult mult_execute(
@@ -402,8 +392,6 @@ module pipelined_multiplication_unit(
         .current_done_inst_entry(current_done_inst_entry),
         .done(done)
     );
-//    assign mult_output.inst = current_inst_entry.instr.inst;
-//    assign mult_output.NPC = current_inst_entry.instr.NPC;
     assign rs_mult_NPC_out        = current_inst_entry.instr.NPC ;
 	assign rs_mult_IR_out         = current_inst_entry.instr.inst;
 	assign rs_mult_valid_inst_out = current_inst_entry.instr.valid;
