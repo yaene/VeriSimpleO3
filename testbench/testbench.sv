@@ -59,6 +59,9 @@ module testbench;
 	logic [`XLEN-1:0] rs_acu_NPC;
 	logic [31:0] rs_acu_IR;
 	logic        rs_acu_valid_inst;
+	logic [`XLEN-1:0] rs_mult_NPC;
+	logic [31:0] rs_mult_IR;
+	logic        rs_mult_valid_inst;
 	logic [`XLEN-1:0] lb_NPC;
 	logic [31:0] lb_IR;
 	logic        lb_valid_inst;
@@ -103,6 +106,9 @@ module testbench;
 		.rs_alu_NPC_out(rs_alu_NPC),
 		.rs_alu_IR_out(rs_alu_IR),
 		.rs_alu_valid_inst_out(rs_alu_valid_inst),
+		.rs_mult_NPC_out(rs_mult_NPC),
+	    .rs_mult_IR_out(rs_mult_IR),
+	    .rs_mult_valid_inst_out(rs_mult_valid_inst),
 		.rs_acu_NPC_out(rs_acu_NPC),
 		.rs_acu_IR_out(rs_acu_IR),
 		.rs_acu_valid_inst_out(rs_acu_valid_inst),
@@ -202,7 +208,7 @@ module testbench;
 		
 		//Open header AFTER throwing the reset otherwise the reset state is displayed
 		print_header("                                                                                                           D-MEM Bus &\n");
-		print_header("Cycle:      IF      |     IS      |     ALU     |     ACU     |     LD      |     WR      |     CMT        Reg Result");
+		print_header("Cycle:      IF      |     IS      |     ALU     |     MUL    |     ACU     |     LD      |     WR      |     CMT        Reg Result");
 	end
 
 
@@ -233,6 +239,7 @@ module testbench;
 			 print_stage(" ", if_IR_out, if_NPC_out[31:0], {31'b0,if_valid_inst_out});
 			 print_stage("|", if_is_IR, if_is_NPC[31:0], {31'b0,if_is_valid_inst});
 			 print_stage("|", rs_alu_IR, rs_alu_NPC[31:0], {31'b0,rs_alu_valid_inst});
+			 print_stage("|", rs_mult_IR, rs_mult_NPC[31:0], {31'b0,rs_mult_valid_inst});
 			 print_stage("|", rs_acu_IR, rs_acu_NPC[31:0], {31'b0,rs_acu_valid_inst});
 			 print_stage("|", lb_IR, lb_NPC[31:0], {31'b0,lb_valid_inst});
 			 print_stage("|", ex_wr_IR, ex_wr_NPC[31:0], {31'b0,ex_wr_valid_inst});
