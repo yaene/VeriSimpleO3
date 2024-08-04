@@ -58,6 +58,10 @@ module pipeline (
 	output logic [31:0] rs_acu_IR_out,
 	output logic        rs_acu_valid_inst_out,
 	
+	output logic [`XLEN-1:0] rs_mult_NPC_out,
+	output logic [31:0] rs_mult_IR_out,
+	output logic        rs_mult_valid_inst_out,
+	
 	output logic [`XLEN-1:0] lb_NPC_out,
 	output logic [31:0] lb_IR_out,
 	output logic        lb_valid_inst_out,
@@ -82,8 +86,11 @@ module pipeline (
 	logic rs_ld_exec_stall;
 	logic rs_alu_enable;
     logic rs_alu_exec_stall;
+    logic rs_mult_enable;
+    logic rs_mult_exec_stall;
     logic lb_exec_stall;
     logic alu_wr_enable;
+    logic mult_wr_enable;
     logic lb_wr_enable;
     logic acu_wr_enable;
 
@@ -121,6 +128,7 @@ module pipeline (
 	// Outputs from Issue stage
 	ID_EX_PACKET is_packet;
 	logic is_ld_st_inst;
+	logic is_alu_inst;
 	logic [`XLEN-1:0] rob_alloc_store_value; 
 	logic [`ROB_TAG_LEN-1:0] rob_alloc_store_dep_inst;
 	logic rob_alloc_wr_mem, is_hazard;
@@ -131,11 +139,11 @@ module pipeline (
     logic [`ROB_TAG_LEN-1:0] rob_alloc_store_dep, is_rs1_rob_tag,  is_rs2_rob_tag;
 
 	// Outputs from Reservation Stations
-	INSTR_READY_ENTRY rs_ld_st_out, rs_alu_out;
-	logic rs_ld_st_full, rs_alu_full;
+	INSTR_READY_ENTRY rs_ld_st_out, rs_alu_out, rs_mult_out;
+	logic rs_ld_st_full, rs_alu_full, rs_mult_full;
 	
 	// Outputs from EX-Stage
-	EX_WR_PACKET alu_packet, acu_st_packet, lb_ex_packet;
+	EX_WR_PACKET alu_packet, mult_packet, acu_st_packet, lb_ex_packet;
 	LB_PACKET acu_ld_packet;
 	logic lb_read_mem, lb_full;
 	logic [`ROB_TAG_LEN-1:0] lb_rob_tag;
@@ -143,14 +151,16 @@ module pipeline (
 	LB_PACKET lb_packet;
 	logic branch_misprediction;
 	logic [`XLEN-1:0]  ex_target_pc;
+	logic mult_done;
+	logic previous_mult_done;
 
 
 	// Outputs from EX/WR Pipeline Register
-	EX_WR_PACKET acu_wr_packet, lb_wr_packet, alu_wr_packet;
+	EX_WR_PACKET acu_wr_packet, lb_wr_packet, alu_wr_packet, mult_wr_packet;
 
 	// outputs from WR-Stage
 	CDB_DATA cdb_data;
-	logic acu_written, alu_written, load_written;
+	logic acu_written, alu_written, mult_written, load_written;
 
 	// Outputs from mem unit
 	logic [`XLEN-1:0] proc2Dmem_addr;
@@ -209,6 +219,8 @@ module pipeline (
 		.Imem2proc_response(mem2proc_response),
 		.Imem2proc_tag(mem2proc_tag),
 		.if_mem_hazard(if_mem_hazard),
+		.if_is_enable(if_is_enable),
+		.mem_busy(mem_busy),
 		
 		// Outputs
 		.proc2Imem_addr(proc2Imem_addr),
@@ -296,9 +308,11 @@ hazard_detection_unit hdu_0 (
 	.reset(reset),
 	.rs_ld_st_full(rs_ld_st_full),
 	.rs_alu_full(rs_alu_full),
+	.rs_mult_full(rs_mult_full),
 	.rob_full(rob_full),
 	.lb_full(lb_full),
 	.is_ld_st_inst(is_ld_st_inst),
+	.is_alu_inst(is_alu_inst),
 	.is_valid_inst(is_packet.valid),
 	.commit_wr_mem(commit_packet.wr_mem),
 	.lb_read_mem(lb_read_mem),
@@ -308,6 +322,8 @@ hazard_detection_unit hdu_0 (
 	.branch_misprediction(branch_misprediction),
 	.alu_wr_valid(alu_wr_packet.valid),
 	.alu_wr_written(alu_written),
+	.mult_wr_valid(mult_wr_packet.valid),
+	.mult_wr_written(mult_written),
 	.lb_wr_valid(lb_wr_packet.valid),
 	.lb_wr_written(load_written),
 	.acu_wr_valid(acu_wr_packet.valid),
@@ -325,8 +341,11 @@ hazard_detection_unit hdu_0 (
 	.rs_ld_exec_stall(rs_ld_exec_stall),
 	.rs_alu_enable(rs_alu_enable),
     .rs_alu_exec_stall(rs_alu_exec_stall),
+    .rs_mult_enable(rs_mult_enable),
+    .rs_mult_exec_stall(rs_mult_exec_stall),
     .lb_exec_stall(lb_exec_stall),
     .alu_wr_enable(alu_wr_enable),
+    .mult_wr_enable(mult_wr_enable),
     .lb_wr_enable(lb_wr_enable),
     .acu_wr_enable(acu_wr_enable),
 	.branch_in_exec(branch_in_exec)
@@ -381,6 +400,7 @@ hazard_detection_unit hdu_0 (
 		// Outputs
 		.id_packet_out(is_packet),
 		.is_ld_st_inst(is_ld_st_inst),
+		.is_alu_inst(is_alu_inst),
 		.alloc_wr_mem(rob_alloc_wr_mem),
 		.alloc_value_in(rob_alloc_value_in),
 		.alloc_store_dep(rob_alloc_store_dep_inst),
@@ -435,6 +455,23 @@ ReservationStation #(.NO_WAIT_RS2(0), .RS_DEPTH(4)) alu_rs  (
 	.ready_inst_entry(rs_alu_out)
 );
 
+ReservationStation #(.NO_WAIT_RS2(0), .RS_DEPTH(4)) mult_rs  (
+	//inputs
+	.clk(clock),
+	.reset(reset),
+	.cdb(cdb_data),
+	.id_packet_out(is_packet),
+	.maptable_packet_rs1(maptable_packet_rs1),
+	.maptable_packet_rs2(maptable_packet_rs2),
+	.alloc_slot(rob_alloc_slot),
+	.alloc_enable(rs_mult_enable),
+	.exec_stall(rs_mult_exec_stall),
+
+	// outputs
+	.rs_full(rs_mult_full),
+	.ready_inst_entry(rs_mult_out)
+);
+
 
 //////////////////////////////////////////////////
 //                                              //
@@ -455,6 +492,22 @@ alu_execution_unit alu_0 (
 	.take_branch(ex_take_branch),
 	.branch_misprediction(branch_misprediction)
 	,.branch_determined(branch_determined)
+);
+
+
+pipelined_multiplication_unit mult_0 (
+    // inputs 
+    .ready_inst_entry(rs_mult_out),
+    .clock(clock),
+    .reset(reset),
+    .previous_done(previous_mult_done),
+    .rs_mult_exec_stall(rs_mult_exec_stall),
+    // outputs 
+    .mult_output(mult_packet),
+    .done(mult_done),
+    .rs_mult_NPC_out(rs_mult_NPC_out),
+    .rs_mult_IR_out(rs_mult_IR_out),
+    .rs_mult_valid_inst_out(rs_mult_valid_inst_out)
 );
 
 	assign rs_acu_NPC_out        = rs_ld_st_out.instr.NPC;
@@ -511,7 +564,8 @@ mem_stage mem_stage_0 (// Inputs
 		.proc2Dmem_addr(proc2Dmem_addr),
 		.proc2Dmem_data(proc2Dmem_data),
 		.Dmem_wait(Dmem_wait),
-		.Dmem_ready(Dmem_ready)
+		.Dmem_ready(Dmem_ready),
+		.mem_busy(mem_busy)
 	);
 
 
@@ -545,10 +599,12 @@ mem_stage mem_stage_0 (// Inputs
 	end
 
 	always_ff @(posedge clock) begin
+	    previous_mult_done <= mult_done;
 		if (reset) begin 
 			acu_wr_packet <= '0;
             lb_wr_packet  <= '0;
             alu_wr_packet <= '0;
+            mult_wr_packet <= '0;
 		end else begin// if (reset)
 			if (acu_wr_enable) begin
 				acu_wr_packet <= next_acu_wr;
@@ -559,6 +615,9 @@ mem_stage mem_stage_0 (// Inputs
 			if (alu_wr_enable) begin
 				alu_wr_packet <= next_alu_wr; 
 			end 
+			if (mult_wr_enable) begin
+			    mult_wr_packet <= mult_packet;
+			end
 		end
 	end // always
 
@@ -574,10 +633,10 @@ mem_stage mem_stage_0 (// Inputs
 		//inputs
 		.clock(clock),
 		.reset(reset),
-		.ex_packet_in({acu_wr_packet,alu_wr_packet,lb_wr_packet}),
+		.ex_packet_in({acu_wr_packet,alu_wr_packet,mult_wr_packet,lb_wr_packet}),
 		// outputs
 		.cdb(cdb_data),
-		.written({acu_written, alu_written, load_written}),
+		.written({acu_written, alu_written, mult_written, load_written}),
 		.wr_inst(ex_wr_IR_out),
 		.wr_NPC(ex_wr_NPC_out)
 	);

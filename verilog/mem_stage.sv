@@ -47,7 +47,8 @@ module mem_stage(
 	// State Definitions
 	typedef enum logic [1:0] {
 		READY,
-		MEM_WAIT
+		MEM_WAIT,
+		REQUEST_ERROR
 	} Dmem_state;
 	Dmem_state current_state, next_state;
 	logic [3:0] recorded_response;
@@ -68,7 +69,25 @@ module mem_stage(
 		case (current_state)
 			READY: begin
 				if (!reset && !Dmem_ready && proc2Dmem_command == BUS_LOAD) begin
-					next_state = MEM_WAIT;
+					if (recorded_response == 0) begin
+						next_state = REQUEST_ERROR;
+					end
+					else begin
+						next_state = MEM_WAIT;
+					end					
+				end
+			end
+			REQUEST_ERROR: begin
+				if (!reset && !Dmem_ready && proc2Dmem_command == BUS_LOAD) begin
+					if (recorded_response == 0) begin
+						next_state = REQUEST_ERROR;
+					end
+					else begin
+						next_state = MEM_WAIT;
+					end					
+				end
+				else begin
+					next_state = READY;
 				end
 			end
 			MEM_WAIT: begin
@@ -85,7 +104,7 @@ module mem_stage(
 	   recorded_response = 0;
     end
 
-	assign recorded_response = (current_state == READY && proc2Dmem_command == BUS_LOAD)? Dmem2proc_response:
+	assign recorded_response = (current_state != MEM_WAIT && proc2Dmem_command == BUS_LOAD)? Dmem2proc_response:
 	                           (current_state == MEM_WAIT)? recorded_response : 0;
 	assign Dmem_ready = (recorded_response !=0) && (recorded_response == Dmem2proc_tag);
 	assign Dmem_wait = (next_state == MEM_WAIT);	
@@ -100,7 +119,7 @@ module mem_stage(
 	// Determine the command that must be sent to mem
 	assign proc2Dmem_command =
 	                        (cmt_packet_in.wr_mem & cmt_packet_in.valid) ? BUS_STORE :
-							(read_mem & lb_packet_in.valid & current_state == READY & lb_wr_enable) ? BUS_LOAD :
+							(read_mem & lb_packet_in.valid & current_state != MEM_WAIT & lb_wr_enable) ? BUS_LOAD :
 	                        BUS_NONE;
 
 	assign proc2Dmem_size = proc2Dmem_command == BUS_LOAD 

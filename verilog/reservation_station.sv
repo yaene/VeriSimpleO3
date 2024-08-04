@@ -25,11 +25,38 @@ module ReservationStation #(parameter NO_WAIT_RS2 = 0, parameter RS_DEPTH = 4)(
     logic [`BIRTHDAY_SIZE-1:0] oldest_birthday;
     logic found_ready_instr;
     integer free_slot, ready_inst_index;
-    generate
-        for (genvar i = 0; i < RS_DEPTH; i = i + 1) begin
-            assign instr_ready_table[i].ready = instr_ready_table[i].rs1_ready & (instr_ready_table[i].rs2_ready | NO_WAIT_RS2);
+
+    always_comb begin
+        for (int i = 0; i < RS_DEPTH; i = i + 1) begin
+            instr_ready_table[i].ready = 0;
+            if (instr_ready_table[i].rs1_ready & (instr_ready_table[i].rs2_ready | NO_WAIT_RS2)) begin
+                instr_ready_table[i].ready = 1;
+            end 
+            // consider ready if value is currently on CDB (forwarding)
+            else if(cdb.valid) begin
+                if(instr_ready_table[i].rs1_ready && instr_ready_table[i].rs2_tag == cdb.rob_tag) begin
+                    instr_ready_table[i].ready = 1;
+                end
+                else if(instr_ready_table[i].rs2_ready && instr_ready_table[i].rs1_tag == cdb.rob_tag) begin
+                    instr_ready_table[i].ready = 1;
+                end
+                else if (instr_ready_table[i].rs1_tag == cdb.rob_tag && instr_ready_table[i].rs2_tag == cdb.rob_tag) begin
+                    instr_ready_table[i].ready = 1;
+                end
+            end
         end
-    endgenerate
+    end
+
+    always_comb begin
+        ready_inst_entry = instr_ready_table[ready_inst_index];
+        // forwarding
+        if (!ready_inst_entry.rs1_ready) begin
+            ready_inst_entry.rs1_value = cdb.value;
+        end
+        if (!ready_inst_entry.rs2_ready) begin
+            ready_inst_entry.rs2_value = cdb.value;
+        end
+    end
 
     always_comb begin
         // find oldest ready instruction
@@ -74,7 +101,6 @@ module ReservationStation #(parameter NO_WAIT_RS2 = 0, parameter RS_DEPTH = 4)(
         new_entry.spec = id_packet_out.spec;
     end
 
-    assign ready_inst_entry = instr_ready_table[ready_inst_index];
 
     always_ff @(posedge clk) begin
         if (reset) begin

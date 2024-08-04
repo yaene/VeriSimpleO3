@@ -227,6 +227,7 @@ module is_stage (
 	
 	// output to hazard detection
 	output is_ld_st_inst,
+	output is_alu_inst,
 	// output to RS + ROB + Maptable
 	output ID_EX_PACKET id_packet_out, // rob.dest_reg, rs, maptable.inst
     // output to rob
@@ -249,6 +250,7 @@ module is_stage (
 	assign id_packet_out.predict_target_pc = if_id_packet_in.predict_target_pc;
 
 	assign is_ld_st_inst = id_packet_out.rd_mem || id_packet_out.wr_mem;
+	assign is_alu_inst = ~is_ld_st_inst && (id_packet_out.alu_func != ALU_MUL) && (id_packet_out.alu_func != ALU_MULH) && (id_packet_out.alu_func != ALU_MULHSU) && (id_packet_out.alu_func != ALU_MULHU);
 
     assign alloc_wr_mem = id_packet_out.wr_mem;
     assign alloc_value_in = id_packet_out.rs2_value;
