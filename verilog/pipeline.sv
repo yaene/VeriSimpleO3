@@ -212,6 +212,8 @@ module pipeline (
 		.Imem2proc_response(mem2proc_response),
 		.Imem2proc_tag(mem2proc_tag),
 		.if_mem_hazard(if_mem_hazard),
+		.if_is_enable(if_is_enable),
+		.mem_busy(mem_busy),
 		
 		// Outputs
 		.proc2Imem_addr(proc2Imem_addr),
@@ -540,7 +542,8 @@ mem_stage mem_stage_0 (// Inputs
 		.proc2Dmem_addr(proc2Dmem_addr),
 		.proc2Dmem_data(proc2Dmem_data),
 		.Dmem_wait(Dmem_wait),
-		.Dmem_ready(Dmem_ready)
+		.Dmem_ready(Dmem_ready),
+		.mem_busy(mem_busy)
 	);
 
 
