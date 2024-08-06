@@ -11,6 +11,8 @@ module ReservationStation #(parameter NO_WAIT_RS2 = 0, parameter RS_DEPTH = 4)(
     input [`ROB_TAG_LEN-1:0] alloc_slot,
     input alloc_enable,
     input exec_stall,
+    input branch_determined,
+    input branch_misprediction,
 
     // Output
     output logic rs_full,
@@ -23,11 +25,38 @@ module ReservationStation #(parameter NO_WAIT_RS2 = 0, parameter RS_DEPTH = 4)(
     logic [`BIRTHDAY_SIZE-1:0] oldest_birthday;
     logic found_ready_instr;
     integer free_slot, ready_inst_index;
-    generate
-        for (genvar i = 0; i < RS_DEPTH; i = i + 1) begin
-            assign instr_ready_table[i].ready = instr_ready_table[i].rs1_ready & (instr_ready_table[i].rs2_ready | NO_WAIT_RS2);
+
+    always_comb begin
+        for (int i = 0; i < RS_DEPTH; i = i + 1) begin
+            instr_ready_table[i].ready = 0;
+            if (instr_ready_table[i].rs1_ready & (instr_ready_table[i].rs2_ready | NO_WAIT_RS2)) begin
+                instr_ready_table[i].ready = 1;
+            end 
+            // consider ready if value is currently on CDB (forwarding)
+            else if(cdb.valid) begin
+                if(instr_ready_table[i].rs1_ready && instr_ready_table[i].rs2_tag == cdb.rob_tag) begin
+                    instr_ready_table[i].ready = 1;
+                end
+                else if(instr_ready_table[i].rs2_ready && instr_ready_table[i].rs1_tag == cdb.rob_tag) begin
+                    instr_ready_table[i].ready = 1;
+                end
+                else if (instr_ready_table[i].rs1_tag == cdb.rob_tag && instr_ready_table[i].rs2_tag == cdb.rob_tag) begin
+                    instr_ready_table[i].ready = 1;
+                end
+            end
         end
-    endgenerate
+    end
+
+    always_comb begin
+        ready_inst_entry = instr_ready_table[ready_inst_index];
+        // forwarding
+        if (!ready_inst_entry.rs1_ready) begin
+            ready_inst_entry.rs1_value = cdb.value;
+        end
+        if (!ready_inst_entry.rs2_ready) begin
+            ready_inst_entry.rs2_value = cdb.value;
+        end
+    end
 
     always_comb begin
         // find oldest ready instruction
@@ -69,9 +98,9 @@ module ReservationStation #(parameter NO_WAIT_RS2 = 0, parameter RS_DEPTH = 4)(
         new_entry.birthday = max_birthday; 
         new_entry.instr = id_packet_out;
         new_entry.ready = new_entry.rs1_ready & (new_entry.rs2_ready | NO_WAIT_RS2);
+        new_entry.spec = id_packet_out.spec;
     end
 
-    assign ready_inst_entry = instr_ready_table[ready_inst_index];
 
     always_ff @(posedge clk) begin
         if (reset) begin
@@ -91,16 +120,34 @@ module ReservationStation #(parameter NO_WAIT_RS2 = 0, parameter RS_DEPTH = 4)(
                 end
                  // Wait for ready value from CDB
                 else if (cdb.valid && instr_ready_table[i].valid ) begin
-                    if (instr_ready_table[i].rs1_tag == cdb.rob_tag) begin
+                    if (!instr_ready_table[i].rs1_ready &&
+                            instr_ready_table[i].rs1_tag == cdb.rob_tag) begin
                         instr_ready_table[i].rs1_value <= cdb.value;
                         instr_ready_table[i].rs1_ready <= 1;
                     end
-                    if (instr_ready_table[i].rs2_tag == cdb.rob_tag) begin
+                    if (!instr_ready_table[i].rs2_ready && 
+                            instr_ready_table[i].rs2_tag == cdb.rob_tag) begin
                         instr_ready_table[i].rs2_value <= cdb.value;
                         instr_ready_table[i].rs2_ready <= 1;
                     end
                 end
            
+            end
+            if (branch_determined) begin
+                if (branch_misprediction) begin // Misprediction FLUSH!
+                    for (integer i = 0; i < RS_DEPTH; i = i + 1) begin
+                        if (instr_ready_table[i].spec) begin
+                            instr_ready_table[i] = '0;
+                        end
+                    end
+                end
+                else begin
+                    for (integer i = 0; i < RS_DEPTH; i = i + 1) begin
+                        if (instr_ready_table[i].spec) begin
+                            instr_ready_table[i].spec = `FALSE;
+                        end
+                    end
+                end
             end
         end
     end

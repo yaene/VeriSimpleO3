@@ -17,7 +17,7 @@
 //////////////////////////////////////////////
 
 `define NUM_MEM_TAGS           8
-`define MEM_LATENCY_IN_CYCLES  0
+`define MEM_LATENCY_IN_CYCLES  0//( $urandom_range(0, 5) )
 
 `define MEM_SIZE_IN_BYTES      (64*1024)
 `define MEM_64BIT_LINES        (`MEM_SIZE_IN_BYTES/8)
@@ -275,6 +275,7 @@ typedef struct packed {
 	logic [2:0] mem_size;
 	logic value_ready;
 	logic address_ready;
+	logic spec;
 } ROB_ENTRY;
 
 
@@ -299,6 +300,7 @@ typedef struct packed{
     logic [`XLEN-1:0] address;
     logic [`ROB_TAG_LEN-1:0] rd_tag;
     logic [2:0] mem_size;
+	logic spec;
 } LB_PACKET;
 
 //////////////////////////////////////////////
@@ -316,6 +318,14 @@ typedef struct packed {
 	logic predict_taken; // to detect mispredictions
 	logic [`XLEN-1:0] predict_target_pc;
 } IF_ID_PACKET;
+
+typedef struct packed {
+	IF_ID_PACKET if_packet;
+	logic [3:0] recorded_response;
+} IQ_PACKET;
+
+`define IQ_SIZE 4 // size of instruction queue
+`define IQ_INDEX_SIZE $clog2(`IQ_SIZE) // size of instruction queue index (head/tail)
 
 //////////////////////////////////////////////
 //
@@ -347,6 +357,7 @@ typedef struct packed {
 	logic       illegal;       // is this instruction illegal?
 	logic       csr_op;        // is this a CSR operation? (we only used this as a cheap way to get return code)
 	logic       valid;         // is inst a valid instruction to be counted for CPI calculations?
+	logic		spec;
 } ID_EX_PACKET;
 
 typedef struct packed {
@@ -355,6 +366,7 @@ typedef struct packed {
 	INST inst;
     logic [`ROB_TAG_LEN-1:0] rob_tag; // identifies instruction that produced value
     logic [`XLEN-1:0] value;
+	logic spec;
 } EX_WR_PACKET;
 
 typedef struct packed {
@@ -369,6 +381,7 @@ typedef struct packed {
     logic [`XLEN-1:0] rs2_value;
 	logic [`BIRTHDAY_SIZE-1:0] birthday;
 	ID_EX_PACKET instr;
+	logic spec;
 } INSTR_READY_ENTRY;
 
 typedef struct packed {
