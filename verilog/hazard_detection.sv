@@ -42,19 +42,17 @@ module hazard_detection_unit (
     output alu_wr_enable,
     output mult_wr_enable,
     output lb_wr_enable,
-    output acu_wr_enable
+    output acu_wr_enable,
+    output logic branch_in_exec
 );
 
     logic is_stall;
-    logic branch_in_exec;
-    logic if_mem_hazard;
-    logic branch_misprediction;
 
     assign is_stall = rob_full
         | (is_ld_st_inst & rs_ld_st_full)
         | (is_alu_inst & rs_alu_full)
         | (~is_ld_st_inst & ~is_alu_inst & rs_mult_full)
-        | branch_in_exec;
+        | (branch_in_exec & is_branch);
 
     assign if_mem_hazard = commit_wr_mem | (lb_read_mem && ~Dmem_wait);
 

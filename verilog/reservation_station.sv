@@ -11,6 +11,8 @@ module ReservationStation #(parameter NO_WAIT_RS2 = 0, parameter RS_DEPTH = 4)(
     input [`ROB_TAG_LEN-1:0] alloc_slot,
     input alloc_enable,
     input exec_stall,
+    input branch_determined,
+    input branch_misprediction,
 
     // Output
     output logic rs_full,
@@ -96,6 +98,7 @@ module ReservationStation #(parameter NO_WAIT_RS2 = 0, parameter RS_DEPTH = 4)(
         new_entry.birthday = max_birthday; 
         new_entry.instr = id_packet_out;
         new_entry.ready = new_entry.rs1_ready & (new_entry.rs2_ready | NO_WAIT_RS2);
+        new_entry.spec = id_packet_out.spec;
     end
 
 
@@ -129,6 +132,22 @@ module ReservationStation #(parameter NO_WAIT_RS2 = 0, parameter RS_DEPTH = 4)(
                     end
                 end
            
+            end
+            if (branch_determined) begin
+                if (branch_misprediction) begin // Misprediction FLUSH!
+                    for (integer i = 0; i < RS_DEPTH; i = i + 1) begin
+                        if (instr_ready_table[i].spec) begin
+                            instr_ready_table[i] = '0;
+                        end
+                    end
+                end
+                else begin
+                    for (integer i = 0; i < RS_DEPTH; i = i + 1) begin
+                        if (instr_ready_table[i].spec) begin
+                            instr_ready_table[i].spec = `FALSE;
+                        end
+                    end
+                end
             end
         end
     end

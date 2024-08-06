@@ -94,6 +94,11 @@ module pipeline (
     logic lb_wr_enable;
     logic acu_wr_enable;
 
+	logic is_branch; 
+	logic alu_branch;
+	logic branch_in_exec;
+	logic branch_determined;
+
 	
 	// Outputs from IF-Stage
 	logic [`XLEN-1:0] proc2Imem_addr;
@@ -113,6 +118,7 @@ module pipeline (
 	logic [`XLEN-1:0] rob_read_value_rs2;      
 	logic pending_stores;                    
 	logic [4:0] rob_wr_dest_reg;                       
+	logic rob_wr_spec;                       
 	logic [`ROB_TAG_LEN-1:0] wr_rob_tag;              
 	logic rob_wr_valid;                          
 	ROB_ENTRY rob_head_entry;             
@@ -129,6 +135,7 @@ module pipeline (
     logic [`XLEN-1:0] rob_alloc_value_in;
     logic rob_alloc_value_in_valid;
 	logic [2:0] rob_alloc_mem_size;
+	logic alloc_branch;
     logic [`ROB_TAG_LEN-1:0] rob_alloc_store_dep, is_rs1_rob_tag,  is_rs2_rob_tag;
 
 	// Outputs from Reservation Stations
@@ -268,6 +275,9 @@ module pipeline (
 		.cdb_data(cdb_data),
 		.load_address(lb_address),
 		.load_rob_tag(lb_rob_tag),
+		.branch_speculating(branch_in_exec),
+		.branch_determined(branch_determined),
+		.branch_misprediction(branch_misprediction),
 		// outputs 
 		.full(rob_full),
 		.alloc_slot(rob_alloc_slot),
@@ -275,6 +285,7 @@ module pipeline (
 		.read_value_rs2(rob_read_value_rs2),
 		.pending_stores(pending_stores),
 		.wr_dest_reg(rob_wr_dest_reg),
+		.wr_spec(rob_wr_spec),
 		.wr_rob_tag(wr_rob_tag),
 		.wr_valid(rob_wr_valid),
 		.head_entry(rob_head_entry),
@@ -287,8 +298,6 @@ module pipeline (
 //             Hazard Detection                 //
 //                                              //
 //////////////////////////////////////////////////
-logic is_branch; 
-logic alu_branch;
 assign is_branch = is_packet.cond_branch | is_packet.uncond_branch;
 assign alu_branch = rs_alu_out.ready & (rs_alu_out.instr.cond_branch 
 		| rs_alu_out.instr.uncond_branch);
@@ -338,7 +347,8 @@ hazard_detection_unit hdu_0 (
     .alu_wr_enable(alu_wr_enable),
     .mult_wr_enable(mult_wr_enable),
     .lb_wr_enable(lb_wr_enable),
-    .acu_wr_enable(acu_wr_enable)
+    .acu_wr_enable(acu_wr_enable),
+	.branch_in_exec(branch_in_exec)
 );
 
    
@@ -364,7 +374,11 @@ hazard_detection_unit hdu_0 (
 		.rd(is_packet.dest_reg_idx),
 		.valid_wb(rob_wr_valid),
 		.rd_wb(rob_wr_dest_reg),
+		.spec_wb(rob_wr_spec),
 		.rob_entry_wb(wr_rob_tag),
+		.branch_speculating(branch_in_exec),
+		.branch_determined(branch_determined),
+		.branch_misprediction(branch_misprediction),
 		//outputs
 		.maptable_packet_rs1(maptable_packet_rs1),
 		.maptable_packet_rs2(maptable_packet_rs2)
@@ -381,6 +395,7 @@ hazard_detection_unit hdu_0 (
 		.maptable_packet_rs2(maptable_packet_rs2),
 		.rs1_read_rob_value(rob_read_value_rs1),
 		.rs2_read_rob_value(rob_read_value_rs2),
+		.branch_speculating(branch_in_exec),
 		
 		// Outputs
 		.id_packet_out(is_packet),
@@ -413,6 +428,8 @@ ReservationStation #(.NO_WAIT_RS2(1), .RS_DEPTH(1)) ld_st_rs  (
 	.alloc_slot(rob_alloc_slot),
 	.alloc_enable(rs_ld_st_enable),
 	.exec_stall(rs_ld_exec_stall),
+	.branch_determined(branch_determined),
+	.branch_misprediction(branch_misprediction),
 
 	// outputs
 	.rs_full(rs_ld_st_full),
@@ -430,6 +447,8 @@ ReservationStation #(.NO_WAIT_RS2(0), .RS_DEPTH(4)) alu_rs  (
 	.alloc_slot(rob_alloc_slot),
 	.alloc_enable(rs_alu_enable),
 	.exec_stall(rs_alu_exec_stall),
+	.branch_determined(branch_determined),
+	.branch_misprediction(branch_misprediction),
 
 	// outputs
 	.rs_full(rs_alu_full),
@@ -472,6 +491,7 @@ alu_execution_unit alu_0 (
 	.target_PC(ex_target_pc),
 	.take_branch(ex_take_branch),
 	.branch_misprediction(branch_misprediction)
+	,.branch_determined(branch_determined)
 );
 
 
@@ -480,6 +500,8 @@ pipelined_multiplication_unit mult_0 (
     .ready_inst_entry(rs_mult_out),
     .clock(clock),
     .reset(reset),
+	.branch_determined(branch_determined),
+	.branch_misprediction(branch_misprediction),
     .previous_done(previous_mult_done),
     .rs_mult_exec_stall(rs_mult_exec_stall),
     // outputs 
@@ -516,6 +538,8 @@ load_buffer load_buffer_0 (
 	.pending_stores(pending_stores),
 	.lb_exec_stall(lb_exec_stall),
 	.Dmem_ready(Dmem_ready),
+	.branch_determined(branch_determined),
+	.branch_misprediction(branch_misprediction),
 	// outputs
 	.lb_packet_out(lb_packet),
 	.full(lb_full),
@@ -553,7 +577,29 @@ mem_stage mem_stage_0 (// Inputs
 //           EX/WR Pipeline Registers           //
 //                                              //
 //////////////////////////////////////////////////
-	
+	EX_WR_PACKET next_acu_wr;
+	EX_WR_PACKET next_lb_wr;
+	EX_WR_PACKET next_alu_wr;
+	always_comb begin
+		next_acu_wr = acu_st_packet;
+		next_lb_wr = lb_ex_packet;
+		next_alu_wr = alu_packet;
+		if (branch_determined) begin
+			if (branch_misprediction & acu_st_packet.spec) next_acu_wr = '0; 
+			else begin
+				next_acu_wr.spec = `FALSE;
+			end
+			if (branch_misprediction & lb_ex_packet.spec) next_lb_wr = '0; 
+			else begin
+				next_lb_wr.spec = `FALSE;
+			end
+			if (branch_misprediction & alu_packet.spec) next_alu_wr = '0; 
+			else begin
+				next_alu_wr.spec = `FALSE;
+			end
+		end
+	end
+
 	always_ff @(posedge clock) begin
 	    previous_mult_done <= mult_done;
 		if (reset) begin 
@@ -563,13 +609,13 @@ mem_stage mem_stage_0 (// Inputs
             mult_wr_packet <= '0;
 		end else begin// if (reset)
 			if (acu_wr_enable) begin
-				acu_wr_packet <= acu_st_packet; 
+				acu_wr_packet <= next_acu_wr;
 			end 
 			if (lb_wr_enable) begin
-				lb_wr_packet <= lb_ex_packet; 
+				lb_wr_packet <= next_lb_wr; 
 			end 
 			if (alu_wr_enable) begin
-				alu_wr_packet <= alu_packet; 
+				alu_wr_packet <= next_alu_wr; 
 			end 
 			if (mult_wr_enable) begin
 			    mult_wr_packet <= mult_packet;

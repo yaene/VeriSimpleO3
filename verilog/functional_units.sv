@@ -104,6 +104,7 @@ module alu_execution_unit(
     output logic [`XLEN-1:0] target_PC, // correct PC for branch misprediction
     output logic take_branch,
     output logic branch_misprediction // indicates whether branch was predicted to be taken
+    ,output branch_determined
 );
     logic brcond_result;
     logic [`XLEN-1:0] opa, opb;
@@ -140,6 +141,7 @@ module alu_execution_unit(
 
     assign alu_output.inst = ready_inst_entry.instr.inst;
     assign alu_output.NPC = ready_inst_entry.instr.NPC;
+    assign alu_output.spec = ready_inst_entry.spec;
 
      // ultimate "take branch" signal:
      // unconditional, or conditional and the condition is true
@@ -151,6 +153,8 @@ module alu_execution_unit(
          (take_branch & (ready_inst_entry.instr.predict_target_pc != branch_target_PC))
         );
     assign target_PC = take_branch ? branch_target_PC : alu_output.NPC;
+    assign branch_determined = ready_inst_entry.ready & alu_output.valid & (ready_inst_entry.instr.uncond_branch | ready_inst_entry.instr.cond_branch);
+
     always_comb begin
         if (~ready_inst_entry.ready) begin
             alu_output.valid = 0;
@@ -214,6 +218,8 @@ module address_calculation_unit(
     assign load_buffer_packet.NPC = ready_inst_entry.instr.NPC;
     assign store_result.inst = ready_inst_entry.instr.inst;
     assign load_buffer_packet.inst = ready_inst_entry.instr.inst;
+    assign store_result.spec = ready_inst_entry.spec;
+    assign load_buffer_packet.spec = ready_inst_entry.spec;
 
     always_comb begin
         load_buffer_packet.address = result;
@@ -241,6 +247,7 @@ endmodule
 
 module mult_stage #(parameter num_stages = 4)(
     input clock, reset, start, stall,
+    input branch_determined, branch_misprediction,
     input [`XLEN-1:0] product_in, mplier_in, mcand_in,
     input INSTR_READY_ENTRY current_inst_entry_in, 
 
@@ -260,21 +267,31 @@ module mult_stage #(parameter num_stages = 4)(
 
     assign next_mplier = {{num_each{1'b0}}, mplier_in[`XLEN-1:num_each]};
     assign next_mcand = {mcand_in[`XLEN-1-num_each:0], {num_each{1'b0}}};
+    INSTR_READY_ENTRY next_inst_entry;
+
+    always_comb begin
+        next_inst_entry = current_inst_entry_in;
+
+        if(branch_determined) begin
+            next_inst_entry.spec = `FALSE;
+        end
+    end
 
     always_ff @(posedge clock or posedge reset) begin
-        if (reset) begin
+        if (reset || (branch_misprediction && current_inst_entry_in.spec)) begin
             prod_in_reg      <= `XLEN'b0;
             partial_prod_reg <= `XLEN'b0;
             mplier_out       <= `XLEN'b0;
             mcand_out        <= `XLEN'b0;
             current_inst_entry_reg <= '0; 
             done             <= 1'b0;
-        end else if (!stall) begin
+        end 
+        else if (!stall) begin
             prod_in_reg      <= product_in;
             partial_prod_reg <= partial_product;
             mplier_out       <= next_mplier;
             mcand_out        <= next_mcand;
-            current_inst_entry_reg <= current_inst_entry_in; 
+            current_inst_entry_reg <= next_inst_entry; 
             done             <= start;
         end
     end
@@ -288,6 +305,7 @@ module mult #(parameter num_stages = 4)(
     input [`XLEN-1:0] mcand, mplier,
     input start,  
     input stall,  
+    input branch_determined, branch_misprediction,
     input INSTR_READY_ENTRY current_inst_entry, 
     output [`XLEN-1:0] product,
     output done,
@@ -302,6 +320,8 @@ module mult #(parameter num_stages = 4)(
     mult_stage #(.num_stages(num_stages)) mstage [(num_stages-1):0] (
         .clock(clock),
         .reset(reset),
+        .branch_determined(branch_determined),
+        .branch_misprediction(branch_misprediction),
         .product_in({internal_products, `XLEN'h0}),
         .mplier_in({internal_mpliers, mplier}),
         .mcand_in({internal_mcands, mcand}),
@@ -319,33 +339,14 @@ endmodule
 
 typedef enum { IDLE, BUSY } MULT_STATE;
 
-module MultiplierControl(
-    input wire clock,
-    input wire reset,
-    input INSTR_READY_ENTRY ready_inst_entry,
-    input wire new_mul_request,   // new mul entry
-    output reg start,              // able to start
-    output INSTR_READY_ENTRY current_inst_entry
-);
-    always_ff @(posedge clock or posedge reset)begin
-        if (reset)begin
-            current_inst_entry = '0;
-        end
-        else begin
-            current_inst_entry = ready_inst_entry;
-        end
-            
-    end
-    assign start = new_mul_request;
-    
-endmodule
-
 module pipelined_multiplication_unit(
     input INSTR_READY_ENTRY ready_inst_entry, // output ready instruction entry from RS
     input clock,
     input reset,
     input previous_done, // indicates the previous multiplication is done
     input rs_mult_exec_stall, // mult is written in wr_stage
+    input branch_determined,
+    input branch_misprediction,
 
     output EX_WR_PACKET mult_output,
     output done, //indicates whether the multiplication is done
@@ -369,19 +370,12 @@ module pipelined_multiplication_unit(
         .func(func)
     );
     
-    MultiplierControl mult_control(
-        .clock(clock),
-        .reset(reset),
-        .ready_inst_entry(ready_inst_entry),
-        .new_mul_request(ready_inst_entry.ready),
-        .start(start),
-        .current_inst_entry(current_inst_entry)
-    );  
-
     mult mult_execute(
         //Inputs
         .clock(clock),
         .reset(reset),
+        .branch_determined(branch_determined),
+        .branch_misprediction(branch_misprediction),
         .mcand(opa),
         .mplier(opb),
         .start(start),
@@ -392,23 +386,22 @@ module pipelined_multiplication_unit(
         .current_done_inst_entry(current_done_inst_entry),
         .done(done)
     );
+    assign start = ready_inst_entry.ready;
+    assign current_inst_entry = ready_inst_entry;
     assign rs_mult_NPC_out        = current_inst_entry.instr.NPC ;
 	assign rs_mult_IR_out         = current_inst_entry.instr.inst;
 	assign rs_mult_valid_inst_out = current_inst_entry.instr.valid;
     always_comb begin
         if (~done) begin
-            mult_output.valid = 0;
-            mult_output.value = 0;
-            mult_output.rob_tag = 0;
-            mult_output.inst = 0;
-            mult_output.NPC = 0;
-        end
+            mult_output = '0;
+       end
         else begin
             mult_output.valid = 1;
             mult_output.value = result;
             mult_output.rob_tag = current_done_inst_entry.rd_tag;
             mult_output.inst = current_done_inst_entry.instr.inst;
             mult_output.NPC = current_done_inst_entry.instr.NPC;
+            mult_output.spec = current_done_inst_entry.spec;
         end
     end
 
