@@ -33,6 +33,8 @@ module pipeline (
 	output logic [`XLEN-1:0] pipeline_commit_wr_data,
 	output logic        pipeline_commit_wr_en,
 	output logic [`XLEN-1:0] pipeline_commit_NPC,
+	output logic branch_determined,
+	output logic branch_misprediction,
 	
 	
 	// testing hooks (these must be exported so we can test
@@ -97,7 +99,6 @@ module pipeline (
 	logic is_branch; 
 	logic alu_branch;
 	logic branch_in_exec;
-	logic branch_determined;
 
 	
 	// Outputs from IF-Stage
@@ -149,7 +150,6 @@ module pipeline (
 	logic [`ROB_TAG_LEN-1:0] lb_rob_tag;
 	logic [`XLEN-1:0] lb_address;
 	LB_PACKET lb_packet;
-	logic branch_misprediction;
 	logic [`XLEN-1:0]  ex_target_pc;
 	logic mult_done;
 	logic previous_mult_done;

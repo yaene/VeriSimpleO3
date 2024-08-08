@@ -28,6 +28,8 @@ module testbench;
 	logic        reset;
 	logic [31:0] clock_count;
 	logic [31:0] instr_count;
+	logic [31:0] branch_count;
+	logic [31:0] misprediction_count;
 	int          wb_fileno;
 	int          bench_fileno;
 	string       benchmark[6];
@@ -48,6 +50,7 @@ module testbench;
 	logic [`XLEN-1:0] pipeline_commit_wr_data;
 	logic        pipeline_commit_wr_en;
 	logic [`XLEN-1:0] pipeline_commit_NPC;
+	logic pipeline_branch_determined, pipeline_branch_misprediction;
 	
 	
 	logic [`XLEN-1:0] if_NPC_out;
@@ -94,6 +97,8 @@ module testbench;
 		.proc2mem_size     (proc2mem_size),
 		
 		.pipeline_completed_insts(pipeline_completed_insts),
+		.branch_determined(pipeline_branch_determined),
+		.branch_misprediction(pipeline_branch_misprediction),
 		.pipeline_error_status(pipeline_error_status),
 		.pipeline_commit_wr_data(pipeline_commit_wr_data),
 		.pipeline_commit_wr_idx(pipeline_commit_wr_idx),
@@ -166,10 +171,12 @@ module testbench;
 
 	task print_cpi_info(string benchmark);
 		real cpi;
+		real branch_accuracy;
 		
 		begin
 			cpi = (clock_count + 1.0) / instr_count;
-			$fdisplay(bench_fileno,"%s,%f,%d",benchmark,cpi,instr_count);
+			branch_accuracy = 1.0-$itor(misprediction_count)/branch_count;
+			$fdisplay(bench_fileno,"%s,%d,%f,%f",benchmark,instr_count,cpi,branch_accuracy);
 		end
 	endtask  // task show_clk_count 
 	
@@ -199,7 +206,7 @@ module testbench;
 		$dumpvars;
 		wb_fileno = $fopen("writeback.out");
 		bench_fileno = $fopen("bench.csv");
-		$fdisplay(bench_fileno,"program,cpi,inst_count");
+		$fdisplay(bench_fileno,"program,inst_count,cpi,branch_accuracy");
 	
 		foreach(benchmark[i]) begin
 			$display("benchmarking %s", benchmark[i]);
@@ -246,9 +253,13 @@ module testbench;
 		if(reset) begin
 			clock_count <= `SD 0;
 			instr_count <= `SD 0;
+			branch_count <= `SD 0;
+			misprediction_count <= `SD 0;
 		end else begin
 			clock_count <= `SD (clock_count + 1);
 			instr_count <= `SD (instr_count + pipeline_completed_insts);
+			branch_count <= `SD (branch_count + pipeline_branch_determined);
+			misprediction_count <= `SD (misprediction_count + pipeline_branch_misprediction);
 		end
 	end  
 	
