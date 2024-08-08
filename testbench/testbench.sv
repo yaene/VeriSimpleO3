@@ -213,6 +213,9 @@ module testbench;
 			@(posedge clock);
 			@(posedge clock);
 			
+			for(int i=0; i<`MEM_64BIT_LINES; i=i+1) begin
+				memory.unified_memory[i] = 64'h0;
+			end
 			$readmemh(benchmark[i], memory.unified_memory);
 			
 			@(posedge clock);
