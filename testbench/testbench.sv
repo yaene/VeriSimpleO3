@@ -223,6 +223,15 @@ module testbench;
 			for(int i=0; i<`MEM_64BIT_LINES; i=i+1) begin
 				memory.unified_memory[i] = 64'h0;
 			end
+			memory.mem2proc_data=64'bx;
+			memory.mem2proc_tag=4'd0;
+			memory.mem2proc_response=4'd0;
+			for(int i=1;i<=`NUM_MEM_TAGS;i=i+1) begin
+				memory.loaded_data[i]=64'bx;
+				memory.cycles_left[i]=16'd0;
+				memory.waiting_for_bus[i]=1'b0;
+			end
+
 			$readmemh(benchmark[i], memory.unified_memory);
 			
 			@(posedge clock);
