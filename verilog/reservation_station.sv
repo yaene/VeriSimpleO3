@@ -85,20 +85,25 @@ module ReservationStation #(parameter NO_WAIT_RS2 = 0, parameter RS_DEPTH = 4)(
         rs_full = (free_slot == RS_DEPTH);
     end
     always_comb begin
-        new_entry.valid = 1;
-        new_entry.rs1_tag = maptable_packet_rs1.rob_tag_val;
-        new_entry.rs2_tag = maptable_packet_rs2.rob_tag_val;
-        new_entry.rd_tag = alloc_slot;
-        new_entry.rs1_value = id_packet_out.rs1_value; // value from regfile
-        new_entry.rs2_value = id_packet_out.rs2_value; // value from regfile
-        new_entry.rs1_ready = (id_packet_out.opa_select != OPA_IS_RS1 && !id_packet_out.cond_branch) 
-            || ((maptable_packet_rs1.rob_tag_val == 0) ? 1: maptable_packet_rs1.rob_tag_ready);
-        new_entry.rs2_ready = (id_packet_out.opb_select != OPB_IS_RS2 && !id_packet_out.cond_branch)
-            || ((maptable_packet_rs2.rob_tag_val == 0) ? 1: maptable_packet_rs2.rob_tag_ready);
-        new_entry.birthday = max_birthday; 
-        new_entry.instr = id_packet_out;
-        new_entry.ready = new_entry.rs1_ready & (new_entry.rs2_ready | NO_WAIT_RS2);
-        new_entry.spec = id_packet_out.spec;
+        if (branch_misprediction && id_packet_out.spec) begin
+            new_entry = '0;
+        end 
+        else begin
+            new_entry.valid = 1;
+            new_entry.rs1_tag = maptable_packet_rs1.rob_tag_val;
+            new_entry.rs2_tag = maptable_packet_rs2.rob_tag_val;
+            new_entry.rd_tag = alloc_slot;
+            new_entry.rs1_value = id_packet_out.rs1_value; // value from regfile
+            new_entry.rs2_value = id_packet_out.rs2_value; // value from regfile
+            new_entry.rs1_ready = (id_packet_out.opa_select != OPA_IS_RS1 && !id_packet_out.cond_branch) 
+                || ((maptable_packet_rs1.rob_tag_val == 0) ? 1: maptable_packet_rs1.rob_tag_ready);
+            new_entry.rs2_ready = (id_packet_out.opb_select != OPB_IS_RS2 && !id_packet_out.cond_branch)
+                || ((maptable_packet_rs2.rob_tag_val == 0) ? 1: maptable_packet_rs2.rob_tag_ready);
+            new_entry.birthday = max_birthday; 
+            new_entry.instr = id_packet_out;
+            new_entry.ready = new_entry.rs1_ready & (new_entry.rs2_ready | NO_WAIT_RS2);
+            new_entry.spec = id_packet_out.spec & ~branch_determined;
+        end
     end
 
 
@@ -137,14 +142,14 @@ module ReservationStation #(parameter NO_WAIT_RS2 = 0, parameter RS_DEPTH = 4)(
                 if (branch_misprediction) begin // Misprediction FLUSH!
                     for (integer i = 0; i < RS_DEPTH; i = i + 1) begin
                         if (instr_ready_table[i].spec) begin
-                            instr_ready_table[i] = '0;
+                            instr_ready_table[i] <= '0;
                         end
                     end
                 end
                 else begin
                     for (integer i = 0; i < RS_DEPTH; i = i + 1) begin
                         if (instr_ready_table[i].spec) begin
-                            instr_ready_table[i].spec = `FALSE;
+                            instr_ready_table[i].spec <= `FALSE;
                         end
                     end
                 end
