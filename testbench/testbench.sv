@@ -203,7 +203,7 @@ module testbench;
 	
 	initial begin
 		benchmark = '{"rv32_copy.mem","rv32_fib_rec.mem","alexnet.mem","backtrack.mem","bfs.mem","priority_queue.mem"};
-		$dumpvars;
+		$dumpoff;
 		wb_fileno = $fopen("writeback.out");
 		bench_fileno = $fopen("bench.csv");
 		$fdisplay(bench_fileno,"program,inst_count,cpi,branch_accuracy");
