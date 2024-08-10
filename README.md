@@ -10,4 +10,4 @@ To test our Out-of-Order pipeline:
    - `pipeline.out`: describe the pipeline process along with the clock cycle.
    - `writeback.out`: record the committed instructions.
    - `bench.csv`: record the total number of instructions and performance metrics(CPI, branch prediction accuracy).
-
+5. In our repo, we provide some memory files that can be tested directly. They are in `test_progs/` folder.
