@@ -32,7 +32,7 @@ module testbench;
 	logic [31:0] misprediction_count;
 	int          wb_fileno;
 	int          bench_fileno;
-	string       benchmark[6];
+	string       benchmark;
 	logic		 done;
 	
 	logic [1:0]  proc2mem_command;
@@ -202,53 +202,51 @@ module testbench;
 	endtask  // task show_mem_with_decimal
 	
 	initial begin
-		benchmark = '{"rv32_copy.mem","rv32_fib_rec.mem","alexnet.mem","backtrack.mem","bfs.mem","priority_queue.mem"};
+		benchmark = "alexnet.mem";
 		$dumpoff;
 		wb_fileno = $fopen("writeback.out");
 		bench_fileno = $fopen("bench.csv");
 		$fdisplay(bench_fileno,"program,inst_count,cpi,branch_accuracy");
 	
-		foreach(benchmark[i]) begin
-			$display("benchmarking %s", benchmark[i]);
-			done=1'b0;
-			clock = 1'b0;
-			reset = 1'b0;
-			
-			// Pulse the reset signal
-			$display("@@\n@@\n@@  %t  Asserting System reset......", $realtime);
-			reset = 1'b1;
-			@(posedge clock);
-			@(posedge clock);
-			
-			for(int i=0; i<`MEM_64BIT_LINES; i=i+1) begin
-				memory.unified_memory[i] = 64'h0;
-			end
-			memory.mem2proc_data=64'bx;
-			memory.mem2proc_tag=4'd0;
-			memory.mem2proc_response=4'd0;
-			for(int i=1;i<=`NUM_MEM_TAGS;i=i+1) begin
-				memory.loaded_data[i]=64'bx;
-				memory.cycles_left[i]=16'd0;
-				memory.waiting_for_bus[i]=1'b0;
-			end
-
-			$readmemh(benchmark[i], memory.unified_memory);
-			
-			@(posedge clock);
-			@(posedge clock);
-			`SD;
-			// This reset is at an odd time to avoid the pos & neg clock edges
-			
-			reset = 1'b0;
-			$display("@@  %t  Deasserting System reset......\n@@\n@@", $realtime);
-			
-			//Open header AFTER throwing the reset otherwise the reset state is displayed
-			print_header("                                                                                                           D-MEM Bus &\n");
-			print_header("Cycle:      IF      |     IS      |     ALU     |     MUL    |     ACU     |     LD      |     WR      |     CMT        Reg Result");
-			@(posedge done)
-			$display("finished benchmark %s", benchmark[i]);
-			print_cpi_info(benchmark[i]);
+		$display("benchmarking %s", benchmark);
+		done=1'b0;
+		clock = 1'b0;
+		reset = 1'b0;
+		
+		// Pulse the reset signal
+		$display("@@\n@@\n@@  %t  Asserting System reset......", $realtime);
+		reset = 1'b1;
+		@(posedge clock);
+		@(posedge clock);
+		
+		for(int i=0; i<`MEM_64BIT_LINES; i=i+1) begin
+			memory.unified_memory[i] = 64'h0;
 		end
+		memory.mem2proc_data=64'bx;
+		memory.mem2proc_tag=4'd0;
+		memory.mem2proc_response=4'd0;
+		for(int i=1;i<=`NUM_MEM_TAGS;i=i+1) begin
+			memory.loaded_data[i]=64'bx;
+			memory.cycles_left[i]=16'd0;
+			memory.waiting_for_bus[i]=1'b0;
+		end
+
+		$readmemh(benchmark, memory.unified_memory);
+		
+		@(posedge clock);
+		@(posedge clock);
+		`SD;
+		// This reset is at an odd time to avoid the pos & neg clock edges
+		
+		reset = 1'b0;
+		$display("@@  %t  Deasserting System reset......\n@@\n@@", $realtime);
+		
+		//Open header AFTER throwing the reset otherwise the reset state is displayed
+		print_header("                                                                                                           D-MEM Bus &\n");
+		print_header("Cycle:      IF      |     IS      |     ALU     |     MUL    |     ACU     |     LD      |     WR      |     CMT        Reg Result");
+		@(posedge done)
+		$display("finished benchmark %s", benchmark);
+		print_cpi_info(benchmark);
 		print_close(); // close the pipe_print output file
 		$fclose(wb_fileno);
 		$fclose(bench_fileno);
