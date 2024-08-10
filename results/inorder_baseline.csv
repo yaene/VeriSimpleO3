@@ -1,7 +1,7 @@
 program,cpi,total_instructions,mem_instructions
-rv32_copy.mem,1.748092,131,48
-rv32_fib_rec.mem,2.070754,11957,3655
-alexnet.mem,1.700839,209068,88058
-backtrack.mem,1.813637,7201,3476
-bfs.mem,1.741602,3483,1423
-priority_queue.mem,1.936039,1454,828
+copy,1.748092,131,48
+fib rec,2.070754,11957,3655
+alexnet,1.700839,209068,88058
+knight tour,1.813637,7201,3476
+bfs,1.741602,3483,1423
+prio queue,1.936039,1454,828

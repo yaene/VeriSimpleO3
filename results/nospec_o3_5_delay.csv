@@ -1,0 +1,7 @@
+program,inst_count,cpi3,branch_count,misprediction_count
+copy,131,2.725191,16,2
+fib rec,11957,3.351844,4643,1929
+alexnet,209068,3.005209,15498,1438
+knight tour,7201,3.111790,957,193
+bfs,3483,3.001148,407,117
+prio queue,1454,3.612792,211,61
