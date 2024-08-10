@@ -1,0 +1,7 @@
+program,inst_count,cpi,branch_count,misprediction_count
+rv32_copy.mem,131,2.671756,16,2
+rv32_fib_rec.mem,11957,3.253074,4643,1929
+alexnet.mem,209068,2.846973,15633,1434
+backtrack.mem,7201,2.922789,1015,198
+bfs.mem,3483,2.870227,409,119
+priority_queue.mem,1454,3.452545,212,62
